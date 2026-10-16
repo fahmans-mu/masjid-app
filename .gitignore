@@ -32,6 +32,16 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
+
+# data aplikasi (database & upload)
+/data/
+
+# paket deploy (berisi snapshot database)
+/deploy/*.tar.gz
+
+# binary tambahan (contoh: cloudflared untuk demo)
+/tools/
 
 # vercel
 .vercel
