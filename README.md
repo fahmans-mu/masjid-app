@@ -106,6 +106,15 @@ Script `deploy/setup-vps.sh` akan otomatis: set timezone Asia/Jakarta, membuat s
 
 Tanpa script (manual), langkahnya: `npm ci` → buat `.env` (lihat bagian 1) → `npm run build` → `pm2 start ecosystem.config.js` → `pm2 save`.
 
+**Alternatif tanpa pm2 — pakai systemd.** Contoh unit sudah disediakan di folder `deploy/`:
+
+- `deploy/masjid-amanah.service` — menjalankan aplikasi di port 3200 + auto-restart & auto-start saat reboot:
+  ```bash
+  sudo cp deploy/masjid-amanah.service /etc/systemd/system/
+  sudo systemctl daemon-reload && sudo systemctl enable --now masjid-amanah
+  ```
+- `deploy/masjid-tunnel.service` — opsional: HTTPS gratis via Cloudflare Tunnel (`cloudflared`) tanpa perlu domain.
+
 **Update aplikasi di kemudian hari** (setelah ada perubahan kode):
 
 ```bash

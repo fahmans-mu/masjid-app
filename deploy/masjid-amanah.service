@@ -1,0 +1,17 @@
+[Unit]
+Description=MasjidAmanah - Transparansi Keuangan Masjid
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/opt/masjid-amanah
+Environment=NODE_ENV=production
+Environment=PORT=3200
+Environment=TZ=Asia/Jakarta
+ExecStart=/usr/bin/node node_modules/next/dist/bin/next start
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

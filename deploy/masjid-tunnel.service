@@ -1,0 +1,13 @@
+[Unit]
+Description=Cloudflare quick tunnel untuk MasjidAmanah (SEMENTARA - sampai port 3200 dibuka di panel)
+After=network.target masjid-amanah.service
+
+[Service]
+Type=simple
+User=ubuntu
+ExecStart=/usr/local/bin/cloudflared tunnel --url http://localhost:3200 --no-autoupdate
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
