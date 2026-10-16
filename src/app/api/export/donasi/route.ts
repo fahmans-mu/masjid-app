@@ -6,9 +6,10 @@ const STATUSES = ["pending", "verified", "rejected"];
 
 export async function GET(req: Request) {
   const session = await getSession();
-  if (!session) {
+  if (!session?.mosqueId) {
     return new Response("Unauthorized", { status: 401 });
   }
+  const mosqueId = session.mosqueId;
 
   const url = new URL(req.url);
   const statusRaw = url.searchParams.get("status");
@@ -20,7 +21,7 @@ export async function GET(req: Request) {
   const q = url.searchParams.get("q")?.trim() || undefined;
   const programId = Number(url.searchParams.get("program")) || undefined;
 
-  const data = listDonations({
+  const data = listDonations(mosqueId, {
     status,
     period,
     search: q,

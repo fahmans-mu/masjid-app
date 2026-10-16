@@ -29,6 +29,16 @@ export async function loginAction(
     return { error: "Email atau password salah." };
   }
 
-  await createSession({ id: user.id, name: user.name, email: user.email });
+  await createSession({
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    mosqueId: user.mosqueId,
+  });
+
+  if (user.role === "super") {
+    redirect(next.startsWith("/superadmin") ? next : "/superadmin");
+  }
   redirect(next.startsWith("/admin") ? next : "/admin");
 }

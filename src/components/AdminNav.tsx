@@ -7,12 +7,15 @@ import {
   Coins,
   ExternalLink,
   FileText,
+  Gift,
   HandCoins,
   LayoutDashboard,
   LogOut,
   Menu,
+  PiggyBank,
   Receipt,
   Settings,
+  ShieldCheck,
   X,
 } from "lucide-react";
 import { logoutAction } from "@/app/admin/(panel)/actions";
@@ -22,18 +25,28 @@ const NAV = [
   { href: "/admin/program", label: "Program Donasi", icon: HandCoins },
   { href: "/admin/donasi", label: "Donasi", icon: Coins, badgeKey: "pending" },
   { href: "/admin/pengeluaran", label: "Pengeluaran", icon: Receipt },
+  { href: "/admin/qurban", label: "Tabungan Qurban", icon: PiggyBank, badgeKey: "qurban" },
   { href: "/admin/laporan", label: "Laporan Bulanan", icon: FileText },
+  { href: "/admin/infaq", label: "Infaq Aplikasi", icon: Gift },
   { href: "/admin/pengaturan", label: "Pengaturan", icon: Settings },
 ] as const;
 
 export function AdminNav({
   mosqueName,
+  mosqueSlug,
   userName,
   pendingCount,
+  qurbanPendingCount,
+  isDemo,
+  isSuper,
 }: {
   mosqueName: string;
+  mosqueSlug: string;
   userName: string;
   pendingCount: number;
+  qurbanPendingCount: number;
+  isDemo: boolean;
+  isSuper: boolean;
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -41,11 +54,18 @@ export function AdminNav({
   const isActive = (href: string, exact?: boolean) =>
     exact ? pathname === href : pathname.startsWith(href);
 
+  const badgeValue = (key: string) => {
+    if (key === "pending") return pendingCount;
+    if (key === "qurban") return qurbanPendingCount;
+    return 0;
+  };
+
   const items = (
     <nav className="flex flex-col gap-1">
       {NAV.map((item) => {
         const active = isActive(item.href, "exact" in item ? item.exact : false);
         const Icon = item.icon;
+        const badge = "badgeKey" in item ? badgeValue(item.badgeKey) : 0;
         return (
           <Link
             key={item.href}
@@ -59,18 +79,28 @@ export function AdminNav({
           >
             <Icon className="h-4.5 w-4.5 shrink-0" />
             <span className="flex-1">{item.label}</span>
-            {"badgeKey" in item && item.badgeKey === "pending" && pendingCount > 0 && (
+            {badge > 0 && (
               <span
                 className={`rounded-full px-2 py-0.5 text-xs font-bold ${
                   active ? "bg-white/20 text-white" : "bg-amber-100 text-amber-700"
                 }`}
               >
-                {pendingCount}
+                {badge}
               </span>
             )}
           </Link>
         );
       })}
+      {isSuper && (
+        <Link
+          href="/superadmin"
+          onClick={() => setOpen(false)}
+          className="flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium text-indigo-600 transition hover:bg-indigo-50"
+        >
+          <ShieldCheck className="h-4.5 w-4.5 shrink-0" />
+          <span className="flex-1">Panel Platform</span>
+        </Link>
+      )}
     </nav>
   );
 
@@ -81,7 +111,7 @@ export function AdminNav({
         <p className="truncate text-sm font-semibold text-slate-800">{userName}</p>
       </div>
       <Link
-        href="/"
+        href={`/m/${mosqueSlug}`}
         target="_blank"
         className="flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100"
       >
@@ -100,26 +130,31 @@ export function AdminNav({
     </div>
   );
 
+  const title = (
+    <>
+      <p className="truncate text-base font-bold text-slate-900">{mosqueName}</p>
+      <p className="text-xs text-slate-400">
+        {isDemo ? (
+          <span className="font-semibold text-amber-600">Mode Demo</span>
+        ) : (
+          "Panel Pengurus"
+        )}
+      </p>
+    </>
+  );
+
   return (
     <>
       {/* Sidebar desktop */}
       <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-slate-200 bg-white p-4 lg:flex">
-        <div className="mb-6 px-2 pt-2">
-          <p className="truncate text-base font-bold text-slate-900">
-            {mosqueName}
-          </p>
-          <p className="text-xs text-slate-400">Panel Pengurus</p>
-        </div>
+        <div className="mb-6 px-2 pt-2">{title}</div>
         {items}
         {bottom}
       </aside>
 
       {/* Top bar mobile */}
       <div className="sticky top-0 z-40 flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3 lg:hidden">
-        <div className="min-w-0">
-          <p className="truncate text-sm font-bold text-slate-900">{mosqueName}</p>
-          <p className="text-xs text-slate-400">Panel Pengurus</p>
-        </div>
+        <div className="min-w-0">{title}</div>
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}

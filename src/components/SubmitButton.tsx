@@ -10,7 +10,7 @@ export function SubmitButton({
 }: {
   children: React.ReactNode;
   pendingText?: string;
-  variant?: "primary" | "secondary" | "danger" | "success";
+  variant?: "primary" | "secondary" | "danger" | "success" | "amber";
   className?: string;
 }) {
   const { pending } = useFormStatus();
@@ -23,6 +23,7 @@ export function SubmitButton({
       "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50",
     danger: "bg-red-600 text-white hover:bg-red-700",
     success: "bg-emerald-600 text-white hover:bg-emerald-700",
+    amber: "bg-amber-600 text-white hover:bg-amber-700",
   };
 
   return (

@@ -5,7 +5,15 @@ import { SignJWT, jwtVerify } from "jose";
 import bcrypt from "bcryptjs";
 import { COOKIE_NAME, SESSION_MAX_AGE, getAuthSecret } from "./constants";
 
-export type SessionUser = { id: number; name: string; email: string };
+export type UserRole = "super" | "pengurus";
+
+export type SessionUser = {
+  id: number;
+  name: string;
+  email: string;
+  role: UserRole;
+  mosqueId: number | null;
+};
 
 export function hashPassword(password: string) {
   return bcrypt.hash(password, 10);
@@ -16,7 +24,12 @@ export function verifyPassword(password: string, hash: string) {
 }
 
 export async function createSession(user: SessionUser) {
-  const token = await new SignJWT({ name: user.name, email: user.email })
+  const token = await new SignJWT({
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    mosqueId: user.mosqueId,
+  })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(String(user.id))
     .setIssuedAt()
@@ -48,6 +61,8 @@ export const getSession = cache(async (): Promise<SessionUser | null> => {
       id: Number(payload.sub),
       name: String(payload.name ?? ""),
       email: String(payload.email ?? ""),
+      role: payload.role === "super" ? "super" : "pengurus",
+      mosqueId: payload.mosqueId == null ? null : Number(payload.mosqueId),
     };
   } catch {
     return null;
@@ -57,5 +72,18 @@ export const getSession = cache(async (): Promise<SessionUser | null> => {
 export async function requireSession(): Promise<SessionUser> {
   const session = await getSession();
   if (!session) redirect("/admin/login");
+  return session;
+}
+
+// Pengurus masjid — wajib punya masjid
+export async function requireMosqueSession(): Promise<SessionUser & { mosqueId: number }> {
+  const session = await requireSession();
+  if (session.mosqueId == null) redirect("/superadmin");
+  return session as SessionUser & { mosqueId: number };
+}
+
+export async function requireSuper(): Promise<SessionUser> {
+  const session = await requireSession();
+  if (session.role !== "super") redirect("/admin");
   return session;
 }

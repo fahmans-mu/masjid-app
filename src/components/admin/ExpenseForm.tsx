@@ -2,7 +2,7 @@
 
 import { ActionForm } from "@/components/ActionForm";
 import { SubmitButton } from "@/components/SubmitButton";
-import { saveExpenseAction } from "@/app/admin/(panel)/pengeluaran/actions";
+import { saveExpenseAction } from "@/app/admin/(panel)/(aktif)/pengeluaran/actions";
 import type { Expense } from "@/lib/schema";
 import { todayISO } from "@/lib/format";
 

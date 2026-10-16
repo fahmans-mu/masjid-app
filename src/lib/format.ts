@@ -87,6 +87,12 @@ export function isValidPeriod(period: string): boolean {
   return /^\d{4}-\d{2}$/.test(period);
 }
 
+export function addCalendarMonths(d: Date, months: number): Date {
+  const next = new Date(d.getTime());
+  next.setMonth(next.getMonth() + months);
+  return next;
+}
+
 export function slugify(text: string): string {
   const s = text
     .toLowerCase()

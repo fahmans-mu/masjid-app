@@ -4,7 +4,8 @@
 # Cara pakai (sebagai root, dari folder proyek):
 #   bash deploy/setup-vps.sh
 # Script ini: set timezone, buat swap, install Node 24,
-# install dependensi, buat .env, build, jalankan pm2 di port 80.
+# install dependensi, buat .env, siapkan database, build,
+# lalu jalankan lewat systemd di port 3200.
 # =============================================================
 set -euo pipefail
 
@@ -62,21 +63,21 @@ else
   echo ".env sudah ada, dibiarkan."
 fi
 
-log "6/7 Build produksi (butuh beberapa menit di VPS kecil)"
+log "6/7 Siapkan database + build produksi (butuh beberapa menit di VPS kecil)"
+npm run db:push
 npm run build
 
-log "7/7 Jalankan dengan pm2 (port 80, auto-start saat VPS reboot)"
-npm install -g pm2
-pm2 delete masjid 2>/dev/null || true
-pm2 start ecosystem.config.js
-pm2 save
-STARTUP_CMD=$(env PATH="$PATH" pm2 startup systemd -u root --hp /root 2>/dev/null | grep -o 'sudo .*' || true)
-if [ -n "${STARTUP_CMD:-}" ]; then eval "${STARTUP_CMD/sudo /}"; fi
+log "7/7 Jalankan dengan systemd (port 3200, auto-start saat VPS reboot)"
+SERVICE_USER=$(stat -c '%U' "$PROJECT_DIR")
+sed "s#User=ubuntu#User=$SERVICE_USER#; s#WorkingDirectory=.*#WorkingDirectory=$PROJECT_DIR#" \
+  deploy/masjid-amanah.service > /etc/systemd/system/masjid-amanah.service
+systemctl daemon-reload
+systemctl enable --now masjid-amanah
 
 echo ""
 echo "==> Menunggu aplikasi siap..."
-for i in $(seq 1 20); do
-  CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost/ || true)
+for i in $(seq 1 30); do
+  CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3200/ || true)
   [ "$CODE" = "200" ] && break
   sleep 1
 done
@@ -85,10 +86,10 @@ IP=$(hostname -I | awk '{print $1}')
 echo ""
 echo "======================================================"
 echo " SELESAI!"
-echo " Cek status : pm2 status"
-echo " Cek log    : pm2 logs masjid"
-echo " Buka       : http://$IP   (status terakhir: $CODE)"
+echo " Cek status : systemctl status masjid-amanah"
+echo " Cek log    : journalctl -u masjid-amanah -f"
+echo " Buka       : http://$IP:3200   (status terakhir: $CODE)"
 echo ""
-echo " Login admin: admin@masjid.id / admin123"
+echo " Login super-admin: admin@masjid.id / admin123"
 echo " PENTING! Segera ganti password di menu Pengaturan."
 echo "======================================================"

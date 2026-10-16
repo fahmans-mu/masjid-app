@@ -1,75 +1,242 @@
-import { and, count, desc, eq, gte, like, lte, sql, sum } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, like, lte, ne, sql, sum } from "drizzle-orm";
 import { db } from "./db";
 import {
+  appInfaqs,
   categories,
   donations,
   expenses,
   monthlyReports,
+  mosques,
+  platformSettings,
   programs,
-  settings,
+  qurbanDeposits,
+  qurbanParticipants,
+  qurbanPrograms,
+  users,
 } from "./schema";
-import type { MonthlyReport, Program, ReportBreakdown } from "./schema";
+import type {
+  AppInfaq,
+  MonthlyReport,
+  Mosque,
+  PlatformSettings,
+  Program,
+  QurbanDeposit,
+  QurbanParticipant,
+  QurbanProgram,
+  ReportBreakdown,
+} from "./schema";
 import { currentPeriod, periodRange } from "./format";
 
-// ---------- Settings ----------
+// ---------- Platform & masjid ----------
 
-export function getSettings() {
-  return db.select().from(settings).where(eq(settings.id, 1)).get() ?? null;
+export function getPlatformSettings(): PlatformSettings | null {
+  return db.select().from(platformSettings).where(eq(platformSettings.id, 1)).get() ?? null;
 }
 
-export type MosqueSettings = NonNullable<ReturnType<typeof getSettings>>;
+export function getMosqueById(id: number): Mosque | null {
+  return db.select().from(mosques).where(eq(mosques.id, id)).get() ?? null;
+}
+
+export function getMosqueBySlug(slug: string): Mosque | null {
+  return db.select().from(mosques).where(eq(mosques.slug, slug)).get() ?? null;
+}
+
+export function listMosques(opts?: { search?: string; includeInactive?: boolean }): Mosque[] {
+  const conds = [];
+  if (!opts?.includeInactive) conds.push(eq(mosques.isActive, true));
+  if (opts?.search) conds.push(like(mosques.name, `%${opts.search}%`));
+  return db
+    .select()
+    .from(mosques)
+    .where(conds.length ? and(...conds) : undefined)
+    .orderBy(mosques.isDemo, desc(mosques.createdAt))
+    .all();
+}
+
+export type MosqueStatus = "nonaktif" | "tak-terbatas" | "aktif" | "kadaluarsa";
+
+export function isMosqueExpired(m: Mosque): boolean {
+  return m.activeUntil != null && m.activeUntil.getTime() < Date.now();
+}
+
+export function mosqueStatus(m: Mosque): MosqueStatus {
+  if (!m.isActive) return "nonaktif";
+  if (m.activeUntil == null) return "tak-terbatas";
+  return isMosqueExpired(m) ? "kadaluarsa" : "aktif";
+}
+
+export function plazaStats() {
+  const mosqueCount = Number(
+    db.select({ c: count() }).from(mosques).where(eq(mosques.isActive, true)).get()?.c ?? 0
+  );
+  const donationTotal = Number(
+    db.select({ total: sum(donations.amount) }).from(donations).where(eq(donations.status, "verified")).get()?.total ?? 0
+  );
+  const reportCount = Number(
+    db.select({ c: count() }).from(monthlyReports).where(eq(monthlyReports.status, "published")).get()?.c ?? 0
+  );
+  return { mosqueCount, donationTotal, reportCount };
+}
+
+export type MosqueWithAdmins = Mosque & { adminEmails: string[] };
+
+export function listMosquesForAdmin(search?: string): MosqueWithAdmins[] {
+  const rows = db
+    .select()
+    .from(mosques)
+    .where(search ? like(mosques.name, `%${search}%`) : undefined)
+    .orderBy(desc(mosques.createdAt))
+    .all();
+  const admins = db
+    .select({ email: users.email, mosqueId: users.mosqueId })
+    .from(users)
+    .where(ne(users.role, "super"))
+    .all();
+  const byMosque = new Map<number, string[]>();
+  for (const a of admins) {
+    if (a.mosqueId == null) continue;
+    const arr = byMosque.get(a.mosqueId) ?? [];
+    arr.push(a.email);
+    byMosque.set(a.mosqueId, arr);
+  }
+  return rows.map((m) => ({ ...m, adminEmails: byMosque.get(m.id) ?? [] }));
+}
+
+export function superSummary() {
+  const all = db.select().from(mosques).all();
+  let aktif = 0;
+  let trial = 0;
+  let kadaluarsa = 0;
+  let nonaktif = 0;
+  for (const m of all) {
+    const st = mosqueStatus(m);
+    if (st === "aktif" || st === "tak-terbatas") {
+      aktif++;
+      if (st === "aktif") trial++;
+    } else if (st === "kadaluarsa") kadaluarsa++;
+    else nonaktif++;
+  }
+  const pendingInfaq = Number(
+    db.select({ c: count() }).from(appInfaqs).where(eq(appInfaqs.status, "pending")).get()?.c ?? 0
+  );
+  return { total: all.length, aktif, trial, kadaluarsa, nonaktif, pendingInfaq };
+}
+
+// ---------- Infaq aplikasi ----------
+
+export function listAppInfaqsForMosque(mosqueId: number): AppInfaq[] {
+  return db
+    .select()
+    .from(appInfaqs)
+    .where(eq(appInfaqs.mosqueId, mosqueId))
+    .orderBy(desc(appInfaqs.createdAt))
+    .all();
+}
+
+export type AppInfaqWithMosque = AppInfaq & { mosqueName: string; mosqueSlug: string };
+
+export function listAppInfaqs(status?: "pending" | "verified" | "rejected"): AppInfaqWithMosque[] {
+  return db
+    .select({
+      id: appInfaqs.id,
+      mosqueId: appInfaqs.mosqueId,
+      months: appInfaqs.months,
+      monthlyAmount: appInfaqs.monthlyAmount,
+      amount: appInfaqs.amount,
+      senderName: appInfaqs.senderName,
+      method: appInfaqs.method,
+      note: appInfaqs.note,
+      proofUrl: appInfaqs.proofUrl,
+      status: appInfaqs.status,
+      periodStart: appInfaqs.periodStart,
+      periodEnd: appInfaqs.periodEnd,
+      verifiedBy: appInfaqs.verifiedBy,
+      verifiedAt: appInfaqs.verifiedAt,
+      createdAt: appInfaqs.createdAt,
+      mosqueName: mosques.name,
+      mosqueSlug: mosques.slug,
+    })
+    .from(appInfaqs)
+    .innerJoin(mosques, eq(appInfaqs.mosqueId, mosques.id))
+    .where(status ? eq(appInfaqs.status, status) : undefined)
+    .orderBy(desc(appInfaqs.createdAt))
+    .all();
+}
+
+export function countPendingAppInfaqs(): number {
+  return Number(
+    db.select({ c: count() }).from(appInfaqs).where(eq(appInfaqs.status, "pending")).get()?.c ?? 0
+  );
+}
 
 // ---------- Ringkasan saldo ----------
 
 const verifiedOnly = eq(donations.status, "verified");
 
-export function getSummary() {
+export function getSummary(mosqueId: number) {
   const incomeRow = db
     .select({ total: sum(donations.amount) })
     .from(donations)
-    .where(verifiedOnly)
+    .where(and(eq(donations.mosqueId, mosqueId), verifiedOnly))
     .get();
-  const expenseRow = db.select({ total: sum(expenses.amount) }).from(expenses).get();
+  const expenseRow = db
+    .select({ total: sum(expenses.amount) })
+    .from(expenses)
+    .where(eq(expenses.mosqueId, mosqueId))
+    .get();
   const totalIncome = Number(incomeRow?.total ?? 0);
   const totalExpense = Number(expenseRow?.total ?? 0);
   return { totalIncome, totalExpense, balance: totalIncome - totalExpense };
 }
 
-export function periodTotals(period: string) {
+export function periodTotals(mosqueId: number, period: string) {
   const { start, end } = periodRange(period);
   const incomeRow = db
     .select({ total: sum(donations.amount) })
     .from(donations)
     .where(
-      and(verifiedOnly, gte(donations.donatedAt, start), lte(donations.donatedAt, end))
+      and(
+        eq(donations.mosqueId, mosqueId),
+        verifiedOnly,
+        gte(donations.donatedAt, start),
+        lte(donations.donatedAt, end)
+      )
     )
     .get();
   const expenseRow = db
     .select({ total: sum(expenses.amount) })
     .from(expenses)
-    .where(and(gte(expenses.spentAt, start), lte(expenses.spentAt, end)))
+    .where(
+      and(eq(expenses.mosqueId, mosqueId), gte(expenses.spentAt, start), lte(expenses.spentAt, end))
+    )
     .get();
   const income = Number(incomeRow?.total ?? 0);
   const expense = Number(expenseRow?.total ?? 0);
   return { income, expense, net: income - expense };
 }
 
-export function balanceBefore(dateISO: string) {
+export function balanceBefore(mosqueId: number, dateISO: string) {
   const incomeRow = db
     .select({ total: sum(donations.amount) })
     .from(donations)
-    .where(and(verifiedOnly, sql`${donations.donatedAt} < ${dateISO}`))
+    .where(
+      and(
+        eq(donations.mosqueId, mosqueId),
+        verifiedOnly,
+        sql`${donations.donatedAt} < ${dateISO}`
+      )
+    )
     .get();
   const expenseRow = db
     .select({ total: sum(expenses.amount) })
     .from(expenses)
-    .where(sql`${expenses.spentAt} < ${dateISO}`)
+    .where(and(eq(expenses.mosqueId, mosqueId), sql`${expenses.spentAt} < ${dateISO}`))
     .get();
   return Number(incomeRow?.total ?? 0) - Number(expenseRow?.total ?? 0);
 }
 
-export function monthlySeries(periods: string[]) {
-  return periods.map((p) => ({ period: p, ...periodTotals(p) }));
+export function monthlySeries(mosqueId: number, periods: string[]) {
+  return periods.map((p) => ({ period: p, ...periodTotals(mosqueId, p) }));
 }
 
 // ---------- Program ----------
@@ -79,30 +246,31 @@ export type ProgramWithRaised = Program & {
   raisedThisMonth: number;
 };
 
-export function programsWithRaised(opts?: {
-  activeOnly?: boolean;
-  type?: "campaign" | "rutin";
-}): ProgramWithRaised[] {
-  const conds = [];
+export function programsWithRaised(
+  mosqueId: number,
+  opts?: {
+    activeOnly?: boolean;
+    type?: "campaign" | "rutin";
+  }
+): ProgramWithRaised[] {
+  const conds = [eq(programs.mosqueId, mosqueId)];
   if (opts?.activeOnly) conds.push(eq(programs.isActive, true));
   if (opts?.type) conds.push(eq(programs.type, opts.type));
 
   const rows = db
     .select()
     .from(programs)
-    .where(conds.length ? and(...conds) : undefined)
+    .where(and(...conds))
     .orderBy(desc(programs.createdAt))
     .all();
 
   const allTotals = db
     .select({ programId: donations.programId, total: sum(donations.amount) })
     .from(donations)
-    .where(verifiedOnly)
+    .where(and(eq(donations.mosqueId, mosqueId), verifiedOnly))
     .groupBy(donations.programId)
     .all();
-  const mapAll = new Map(
-    allTotals.map((r) => [r.programId, Number(r.total ?? 0)])
-  );
+  const mapAll = new Map(allTotals.map((r) => [r.programId, Number(r.total ?? 0)]));
 
   const period = currentPeriod();
   const { start, end } = periodRange(period);
@@ -110,13 +278,16 @@ export function programsWithRaised(opts?: {
     .select({ programId: donations.programId, total: sum(donations.amount) })
     .from(donations)
     .where(
-      and(verifiedOnly, gte(donations.donatedAt, start), lte(donations.donatedAt, end))
+      and(
+        eq(donations.mosqueId, mosqueId),
+        verifiedOnly,
+        gte(donations.donatedAt, start),
+        lte(donations.donatedAt, end)
+      )
     )
     .groupBy(donations.programId)
     .all();
-  const mapMonth = new Map(
-    monthTotals.map((r) => [r.programId, Number(r.total ?? 0)])
-  );
+  const mapMonth = new Map(monthTotals.map((r) => [r.programId, Number(r.total ?? 0)]));
 
   return rows.map((p) => ({
     ...p,
@@ -125,13 +296,17 @@ export function programsWithRaised(opts?: {
   }));
 }
 
-export function getProgramById(id: number): ProgramWithRaised | null {
-  const p = db.select().from(programs).where(eq(programs.id, id)).get();
+export function getProgramById(mosqueId: number, id: number): ProgramWithRaised | null {
+  const p = db
+    .select()
+    .from(programs)
+    .where(and(eq(programs.mosqueId, mosqueId), eq(programs.id, id)))
+    .get();
   if (!p) return null;
   const allRow = db
     .select({ total: sum(donations.amount) })
     .from(donations)
-    .where(and(verifiedOnly, eq(donations.programId, p.id)))
+    .where(and(eq(donations.mosqueId, mosqueId), verifiedOnly, eq(donations.programId, p.id)))
     .get();
   const period = currentPeriod();
   const { start, end } = periodRange(period);
@@ -140,6 +315,7 @@ export function getProgramById(id: number): ProgramWithRaised | null {
     .from(donations)
     .where(
       and(
+        eq(donations.mosqueId, mosqueId),
         verifiedOnly,
         eq(donations.programId, p.id),
         gte(donations.donatedAt, start),
@@ -154,10 +330,14 @@ export function getProgramById(id: number): ProgramWithRaised | null {
   };
 }
 
-export function getProgramBySlug(slug: string): ProgramWithRaised | null {
-  const p = db.select().from(programs).where(eq(programs.slug, slug)).get();
+export function getProgramBySlug(mosqueId: number, slug: string): ProgramWithRaised | null {
+  const p = db
+    .select()
+    .from(programs)
+    .where(and(eq(programs.mosqueId, mosqueId), eq(programs.slug, slug)))
+    .get();
   if (!p) return null;
-  return getProgramById(p.id);
+  return getProgramById(mosqueId, p.id);
 }
 
 // ---------- Donasi ----------
@@ -172,10 +352,10 @@ export type DonationFilters = {
   perPage?: number;
 };
 
-export function listDonations(f: DonationFilters = {}) {
+export function listDonations(mosqueId: number, f: DonationFilters = {}) {
   const perPage = f.perPage ?? 25;
   const page = Math.max(1, f.page ?? 1);
-  const conds = [];
+  const conds = [eq(donations.mosqueId, mosqueId)];
   if (f.status) conds.push(eq(donations.status, f.status));
   if (f.programId) conds.push(eq(donations.programId, f.programId));
   if (f.categoryId) conds.push(eq(donations.categoryId, f.categoryId));
@@ -184,7 +364,7 @@ export function listDonations(f: DonationFilters = {}) {
     conds.push(gte(donations.donatedAt, start), lte(donations.donatedAt, end));
   }
   if (f.search) conds.push(like(donations.donorName, `%${f.search}%`));
-  const where = conds.length ? and(...conds) : undefined;
+  const where = and(...conds);
 
   const rows = db
     .select({
@@ -234,21 +414,21 @@ export function listDonations(f: DonationFilters = {}) {
 
 export type DonationRow = ReturnType<typeof listDonations>["rows"][number];
 
-export function getDonationById(id: number) {
+export function getDonationById(mosqueId: number, id: number) {
   return (
     db
       .select()
       .from(donations)
-      .where(eq(donations.id, id))
+      .where(and(eq(donations.mosqueId, mosqueId), eq(donations.id, id)))
       .get() ?? null
   );
 }
 
-export function countPendingDonations() {
+export function countPendingDonations(mosqueId: number) {
   const row = db
     .select({ c: count() })
     .from(donations)
-    .where(eq(donations.status, "pending"))
+    .where(and(eq(donations.mosqueId, mosqueId), eq(donations.status, "pending")))
     .get();
   return Number(row?.c ?? 0);
 }
@@ -263,17 +443,17 @@ export type ExpenseFilters = {
   perPage?: number;
 };
 
-export function listExpenses(f: ExpenseFilters = {}) {
+export function listExpenses(mosqueId: number, f: ExpenseFilters = {}) {
   const perPage = f.perPage ?? 25;
   const page = Math.max(1, f.page ?? 1);
-  const conds = [];
+  const conds = [eq(expenses.mosqueId, mosqueId)];
   if (f.period) {
     const { start, end } = periodRange(f.period);
     conds.push(gte(expenses.spentAt, start), lte(expenses.spentAt, end));
   }
   if (f.programId) conds.push(eq(expenses.programId, f.programId));
   if (f.categoryId) conds.push(eq(expenses.categoryId, f.categoryId));
-  const where = conds.length ? and(...conds) : undefined;
+  const where = and(...conds);
 
   const rows = db
     .select({
@@ -316,68 +496,72 @@ export function listExpenses(f: ExpenseFilters = {}) {
 
 export type ExpenseRow = ReturnType<typeof listExpenses>["rows"][number];
 
-export function getExpenseById(id: number) {
+export function getExpenseById(mosqueId: number, id: number) {
   return (
     db
       .select()
       .from(expenses)
-      .where(eq(expenses.id, id))
+      .where(and(eq(expenses.mosqueId, mosqueId), eq(expenses.id, id)))
       .get() ?? null
   );
 }
 
 // ---------- Kategori ----------
 
-export function listCategories(kind?: "income" | "expense") {
+export function listCategories(mosqueId: number, kind?: "income" | "expense") {
+  const conds = [eq(categories.mosqueId, mosqueId)];
+  if (kind) conds.push(eq(categories.kind, kind));
   return db
     .select()
     .from(categories)
-    .where(kind ? eq(categories.kind, kind) : undefined)
+    .where(and(...conds))
     .orderBy(categories.id)
     .all();
 }
 
-export function countCategoryUsage(categoryId: number) {
+export function countCategoryUsage(mosqueId: number, categoryId: number) {
   const d = db
     .select({ c: count() })
     .from(donations)
-    .where(eq(donations.categoryId, categoryId))
+    .where(and(eq(donations.mosqueId, mosqueId), eq(donations.categoryId, categoryId)))
     .get();
   const e = db
     .select({ c: count() })
     .from(expenses)
-    .where(eq(expenses.categoryId, categoryId))
+    .where(and(eq(expenses.mosqueId, mosqueId), eq(expenses.categoryId, categoryId)))
     .get();
   return Number(d?.c ?? 0) + Number(e?.c ?? 0);
 }
 
 // ---------- Laporan bulanan ----------
 
-export function getReport(period: string) {
+export function getReport(mosqueId: number, period: string) {
   return (
     db
       .select()
       .from(monthlyReports)
-      .where(eq(monthlyReports.period, period))
+      .where(and(eq(monthlyReports.mosqueId, mosqueId), eq(monthlyReports.period, period)))
       .get() ?? null
   );
 }
 
-export function listReports(opts?: { publishedOnly?: boolean }) {
+export function listReports(mosqueId: number, opts?: { publishedOnly?: boolean }) {
+  const conds = [eq(monthlyReports.mosqueId, mosqueId)];
+  if (opts?.publishedOnly) conds.push(eq(monthlyReports.status, "published"));
   return db
     .select()
     .from(monthlyReports)
-    .where(opts?.publishedOnly ? eq(monthlyReports.status, "published") : undefined)
+    .where(and(...conds))
     .orderBy(desc(monthlyReports.period))
     .all();
 }
 
-export function distinctTransactionPeriods(): string[] {
+export function distinctTransactionPeriods(mosqueId: number): string[] {
   const rows = db.all<{ period: string }>(
     sql`select period from (
-          select distinct substr(donated_at, 1, 7) as period from donations
+          select distinct substr(donated_at, 1, 7) as period from donations where mosque_id = ${mosqueId}
           union
-          select distinct substr(spent_at, 1, 7) as period from expenses
+          select distinct substr(spent_at, 1, 7) as period from expenses where mosque_id = ${mosqueId}
         ) where period is not null order by period desc`
   );
   return rows.map((r) => r.period).filter(Boolean);
@@ -392,9 +576,9 @@ export type ComputedReport = {
   breakdown: ReportBreakdown;
 };
 
-export function computeReport(period: string): ComputedReport {
+export function computeReport(mosqueId: number, period: string): ComputedReport {
   const { start, end } = periodRange(period);
-  const openingBalance = balanceBefore(start);
+  const openingBalance = balanceBefore(mosqueId, start);
 
   const incomeRows = db
     .select({
@@ -407,7 +591,12 @@ export function computeReport(period: string): ComputedReport {
     .leftJoin(programs, eq(donations.programId, programs.id))
     .leftJoin(categories, eq(donations.categoryId, categories.id))
     .where(
-      and(verifiedOnly, gte(donations.donatedAt, start), lte(donations.donatedAt, end))
+      and(
+        eq(donations.mosqueId, mosqueId),
+        verifiedOnly,
+        gte(donations.donatedAt, start),
+        lte(donations.donatedAt, end)
+      )
     )
     .all();
 
@@ -420,7 +609,9 @@ export function computeReport(period: string): ComputedReport {
     .from(expenses)
     .leftJoin(programs, eq(expenses.programId, programs.id))
     .leftJoin(categories, eq(expenses.categoryId, categories.id))
-    .where(and(gte(expenses.spentAt, start), lte(expenses.spentAt, end)))
+    .where(
+      and(eq(expenses.mosqueId, mosqueId), gte(expenses.spentAt, start), lte(expenses.spentAt, end))
+    )
     .all();
 
   const totalIncome = incomeRows.reduce((s, r) => s + r.amount, 0);
@@ -487,7 +678,7 @@ export type LedgerEntry = {
   method: string | null;
 };
 
-export function publicLedger(period: string, page = 1, perPage = 30) {
+export function publicLedger(mosqueId: number, period: string, page = 1, perPage = 30) {
   const { start, end } = periodRange(period);
 
   const incomeRows = db
@@ -505,7 +696,12 @@ export function publicLedger(period: string, page = 1, perPage = 30) {
     .leftJoin(programs, eq(donations.programId, programs.id))
     .leftJoin(categories, eq(donations.categoryId, categories.id))
     .where(
-      and(verifiedOnly, gte(donations.donatedAt, start), lte(donations.donatedAt, end))
+      and(
+        eq(donations.mosqueId, mosqueId),
+        verifiedOnly,
+        gte(donations.donatedAt, start),
+        lte(donations.donatedAt, end)
+      )
     )
     .all();
 
@@ -521,7 +717,9 @@ export function publicLedger(period: string, page = 1, perPage = 30) {
     .from(expenses)
     .leftJoin(programs, eq(expenses.programId, programs.id))
     .leftJoin(categories, eq(expenses.categoryId, categories.id))
-    .where(and(gte(expenses.spentAt, start), lte(expenses.spentAt, end)))
+    .where(
+      and(eq(expenses.mosqueId, mosqueId), gte(expenses.spentAt, start), lte(expenses.spentAt, end))
+    )
     .all();
 
   const merged: LedgerEntry[] = [
@@ -558,4 +756,132 @@ export function publicLedger(period: string, page = 1, perPage = 30) {
     incomeTotal: incomeRows.reduce((s, r) => s + r.amount, 0),
     expenseTotal: expenseRows.reduce((s, r) => s + r.amount, 0),
   };
+}
+
+// ---------- Tabungan Qurban ----------
+
+export function listQurbanPrograms(mosqueId: number): QurbanProgram[] {
+  return db
+    .select()
+    .from(qurbanPrograms)
+    .where(eq(qurbanPrograms.mosqueId, mosqueId))
+    .orderBy(desc(qurbanPrograms.createdAt))
+    .all();
+}
+
+export function getQurbanProgramById(mosqueId: number, id: number): QurbanProgram | null {
+  return (
+    db
+      .select()
+      .from(qurbanPrograms)
+      .where(and(eq(qurbanPrograms.mosqueId, mosqueId), eq(qurbanPrograms.id, id)))
+      .get() ?? null
+  );
+}
+
+export function getActiveQurbanProgram(mosqueId: number): QurbanProgram | null {
+  return (
+    db
+      .select()
+      .from(qurbanPrograms)
+      .where(and(eq(qurbanPrograms.mosqueId, mosqueId), eq(qurbanPrograms.isActive, true)))
+      .orderBy(desc(qurbanPrograms.createdAt))
+      .get() ?? null
+  );
+}
+
+export type QurbanParticipantWithRaised = QurbanParticipant & {
+  raised: number;
+  progress: number;
+  done: boolean;
+};
+
+export function listQurbanParticipantsDetailed(
+  programId: number,
+  opts?: { onlyApproved?: boolean }
+): QurbanParticipantWithRaised[] {
+  const conds = [eq(qurbanParticipants.programId, programId)];
+  if (opts?.onlyApproved) conds.push(eq(qurbanParticipants.status, "approved"));
+  const rows = db
+    .select()
+    .from(qurbanParticipants)
+    .where(and(...conds))
+    .orderBy(qurbanParticipants.createdAt)
+    .all();
+  if (rows.length === 0) return [];
+
+  const ids = rows.map((r) => r.id);
+  const sums = db
+    .select({ participantId: qurbanDeposits.participantId, total: sum(qurbanDeposits.amount) })
+    .from(qurbanDeposits)
+    .where(inArray(qurbanDeposits.participantId, ids))
+    .groupBy(qurbanDeposits.participantId)
+    .all();
+  const map = new Map(sums.map((s) => [s.participantId, Number(s.total ?? 0)]));
+
+  return rows.map((p) => {
+    const raised = map.get(p.id) ?? 0;
+    return {
+      ...p,
+      raised,
+      progress:
+        p.targetAmount > 0 ? Math.min(100, Math.round((raised / p.targetAmount) * 100)) : 0,
+      done: raised >= p.targetAmount,
+    };
+  });
+}
+
+export function getQurbanParticipantById(mosqueId: number, id: number): QurbanParticipant | null {
+  return (
+    db
+      .select()
+      .from(qurbanParticipants)
+      .where(and(eq(qurbanParticipants.mosqueId, mosqueId), eq(qurbanParticipants.id, id)))
+      .get() ?? null
+  );
+}
+
+export function participantRaised(participantId: number): number {
+  const row = db
+    .select({ total: sum(qurbanDeposits.amount) })
+    .from(qurbanDeposits)
+    .where(eq(qurbanDeposits.participantId, participantId))
+    .get();
+  return Number(row?.total ?? 0);
+}
+
+export function listQurbanDeposits(participantId: number): QurbanDeposit[] {
+  return db
+    .select()
+    .from(qurbanDeposits)
+    .where(eq(qurbanDeposits.participantId, participantId))
+    .orderBy(desc(qurbanDeposits.depositedAt), desc(qurbanDeposits.id))
+    .all();
+}
+
+export function qurbanStats(programId: number, opts?: { onlyApproved?: boolean }) {
+  const parts = listQurbanParticipantsDetailed(programId, opts);
+  const approved = parts.filter((p) => p.status === "approved");
+  const source = opts?.onlyApproved ? approved : parts;
+  return {
+    participantCount: source.length,
+    approvedCount: approved.length,
+    pendingCount: parts.filter((p) => p.status === "pending").length,
+    kambingCount: approved.filter((p) => p.animalType === "kambing").length,
+    sapiCount: approved.filter((p) => p.animalType === "sapi").length,
+    totalRaised: approved.reduce((s, p) => s + p.raised, 0),
+    totalTarget: approved.reduce((s, p) => s + p.targetAmount, 0),
+    lunasCount: approved.filter((p) => p.done).length,
+  };
+}
+
+export function countPendingQurban(mosqueId: number): number {
+  const row = db
+    .select({ c: count() })
+    .from(qurbanParticipants)
+    .where(
+      and(eq(qurbanParticipants.mosqueId, mosqueId), eq(qurbanParticipants.status, "pending"))
+    )
+    .get();
+  return Number(row?.c ?? 0);
 }

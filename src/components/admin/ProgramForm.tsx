@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ActionForm } from "@/components/ActionForm";
 import { SubmitButton } from "@/components/SubmitButton";
-import { saveProgramAction } from "@/app/admin/(panel)/program/actions";
+import { saveProgramAction } from "@/app/admin/(panel)/(aktif)/program/actions";
 import type { Program } from "@/lib/schema";
 
 const inputCls =

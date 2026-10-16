@@ -2,7 +2,7 @@
 
 import { ActionForm } from "@/components/ActionForm";
 import { SubmitButton } from "@/components/SubmitButton";
-import { saveDonationAction } from "@/app/admin/(panel)/donasi/actions";
+import { saveDonationAction } from "@/app/admin/(panel)/(aktif)/donasi/actions";
 import type { Donation } from "@/lib/schema";
 import { todayISO } from "@/lib/format";
 

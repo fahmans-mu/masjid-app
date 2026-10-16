@@ -1,11 +1,11 @@
 import { Building2, QrCode } from "lucide-react";
 import { CopyButton } from "./CopyButton";
-import type { MosqueSettings } from "@/lib/queries";
+import type { Mosque } from "@/lib/schema";
 
 export function DonationMethods({
   settings,
 }: {
-  settings: MosqueSettings | null;
+  settings: Mosque | null;
 }) {
   const s = settings;
   return (

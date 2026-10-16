@@ -3,7 +3,7 @@ import { listExpenses } from "@/lib/queries";
 
 export async function GET(req: Request) {
   const session = await getSession();
-  if (!session) {
+  if (!session?.mosqueId) {
     return new Response("Unauthorized", { status: 401 });
   }
 
@@ -12,7 +12,12 @@ export async function GET(req: Request) {
   const period = periodRaw && /^\d{4}-\d{2}$/.test(periodRaw) ? periodRaw : undefined;
   const categoryId = Number(url.searchParams.get("category")) || undefined;
 
-  const data = listExpenses({ period, categoryId, perPage: 100_000, page: 1 });
+  const data = listExpenses(session.mosqueId, {
+    period,
+    categoryId,
+    perPage: 100_000,
+    page: 1,
+  });
 
   const header = ["Tanggal", "Keterangan", "Kategori", "Program", "Jumlah", "Dicatat oleh"];
   const lines: (string | number)[][] = [

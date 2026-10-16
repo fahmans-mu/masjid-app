@@ -7,7 +7,7 @@ export async function GET(
   { params }: { params: Promise<{ period: string }> }
 ) {
   const session = await getSession();
-  if (!session) {
+  if (!session?.mosqueId) {
     return new Response("Unauthorized", { status: 401 });
   }
 
@@ -16,7 +16,7 @@ export async function GET(
     return new Response("Periode tidak valid", { status: 400 });
   }
 
-  const report = getReport(period);
+  const report = getReport(session.mosqueId, period);
   if (!report) {
     return new Response("Laporan belum dibuat", { status: 404 });
   }

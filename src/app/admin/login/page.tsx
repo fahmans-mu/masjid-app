@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Landmark } from "lucide-react";
 import { ActionForm } from "@/components/ActionForm";
 import { SubmitButton } from "@/components/SubmitButton";
-import { getSettings } from "@/lib/queries";
+import { APP_NAME } from "@/lib/constants";
 import { loginAction } from "./actions";
 
 export const metadata: Metadata = {
@@ -16,7 +16,6 @@ export default async function LoginPage({
   searchParams: Promise<{ next?: string }>;
 }) {
   const { next } = await searchParams;
-  const settings = getSettings();
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-emerald-800 via-emerald-700 to-teal-700 px-4 py-10">
@@ -25,9 +24,7 @@ export default async function LoginPage({
           <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15 backdrop-blur">
             <Landmark className="h-7 w-7" />
           </div>
-          <h1 className="text-xl font-bold">
-            {settings?.mosqueName ?? "Panel Pengurus"}
-          </h1>
+          <h1 className="text-xl font-bold">{APP_NAME}</h1>
           <p className="mt-1 text-sm text-emerald-100">
             Masuk untuk mengelola keuangan masjid
           </p>
@@ -70,15 +67,20 @@ export default async function LoginPage({
           </ActionForm>
 
           <div className="mt-5 rounded-xl bg-slate-50 px-4 py-3 text-xs text-slate-500">
-            Akun awal (bisa diubah di Pengaturan):{" "}
-            <span className="font-semibold text-slate-700">admin@masjid.id</span> /{" "}
-            <span className="font-semibold text-slate-700">admin123</span>
+            Masjidmu belum terdaftar?{" "}
+            <Link href="/daftar" className="font-semibold text-emerald-700 hover:underline">
+              Daftarkan masjid gratis
+            </Link>{" "}
+            · Mau lihat-lihat dulu?{" "}
+            <Link href="/demo" className="font-semibold text-emerald-700 hover:underline">
+              Coba demo
+            </Link>
           </div>
         </div>
 
         <p className="mt-6 text-center text-sm">
           <Link href="/" className="text-emerald-100 hover:text-white hover:underline">
-            ← Kembali ke halaman publik
+            ← Kembali ke {APP_NAME}
           </Link>
         </p>
       </div>

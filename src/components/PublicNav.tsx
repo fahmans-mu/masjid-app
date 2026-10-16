@@ -5,30 +5,33 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Landmark, Menu, X } from "lucide-react";
 
-const LINKS = [
-  { href: "/", label: "Beranda" },
-  { href: "/program", label: "Program Donasi" },
-  { href: "/laporan", label: "Laporan Keuangan" },
-  { href: "/transparansi", label: "Buku Kas" },
-];
-
 export function PublicNav({
   mosqueName,
   logoUrl,
+  basePath,
 }: {
   mosqueName: string;
   logoUrl?: string | null;
+  basePath: string;
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
-  const isActive = (href: string) =>
-    href === "/" ? pathname === "/" : pathname.startsWith(href);
+  const LINKS = [
+    { href: basePath, label: "Beranda", exact: true },
+    { href: `${basePath}/program`, label: "Program Donasi" },
+    { href: `${basePath}/qurban`, label: "Tabungan Qurban" },
+    { href: `${basePath}/laporan`, label: "Laporan Keuangan" },
+    { href: `${basePath}/transparansi`, label: "Buku Kas" },
+  ];
+
+  const isActive = (href: string, exact?: boolean) =>
+    exact ? pathname === href : pathname.startsWith(href);
 
   return (
     <header className="no-print sticky top-0 z-40 border-b border-slate-200 bg-white/90 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4">
-        <Link href="/" className="flex min-w-0 items-center gap-2.5">
+        <Link href={basePath} className="flex min-w-0 items-center gap-2.5">
           {logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -52,7 +55,7 @@ export function PublicNav({
               key={l.href}
               href={l.href}
               className={`rounded-lg px-3.5 py-2 text-sm font-medium transition ${
-                isActive(l.href)
+                isActive(l.href, l.exact)
                   ? "bg-emerald-50 text-emerald-700"
                   : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
               }`}
@@ -81,7 +84,7 @@ export function PublicNav({
                 href={l.href}
                 onClick={() => setOpen(false)}
                 className={`rounded-lg px-3.5 py-2.5 text-sm font-medium ${
-                  isActive(l.href)
+                  isActive(l.href, l.exact)
                     ? "bg-emerald-50 text-emerald-700"
                     : "text-slate-600 hover:bg-slate-100"
                 }`}

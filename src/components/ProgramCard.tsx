@@ -12,9 +12,11 @@ import type { ProgramWithRaised } from "@/lib/queries";
 
 export function ProgramCard({
   program: p,
+  basePath,
   showType = true,
 }: {
   program: ProgramWithRaised;
+  basePath: string;
   showType?: boolean;
 }) {
   const isCampaign = p.type === "campaign";
@@ -37,7 +39,7 @@ export function ProgramCard({
 
   return (
     <Link
-      href={`/program/${p.slug}`}
+      href={`${basePath}/program/${p.slug}`}
       className="group flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white transition hover:-translate-y-0.5 hover:shadow-lg"
     >
       {p.imageUrl ? (

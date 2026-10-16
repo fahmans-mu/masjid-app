@@ -2,20 +2,23 @@
 
 import { ActionForm } from "./ActionForm";
 import { SubmitButton } from "./SubmitButton";
-import { confirmDonationAction } from "@/app/(public)/actions";
+import { confirmDonationAction } from "@/app/m/[mosque]/actions";
 import { todayISO } from "@/lib/format";
 
 export function DonationConfirmForm({
+  mosqueId,
   programs,
   categories,
   defaultProgramId = null,
 }: {
+  mosqueId: number;
   programs: { id: number; title: string; type: string }[];
   categories: { id: number; name: string }[];
   defaultProgramId?: number | null;
 }) {
   return (
     <ActionForm action={confirmDonationAction} className="space-y-4" resetOnSuccess>
+      <input type="hidden" name="mosqueId" value={mosqueId} />
       <input
         type="text"
         name="website"
