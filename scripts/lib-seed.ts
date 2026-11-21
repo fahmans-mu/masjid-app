@@ -147,6 +147,9 @@ export type MosqueSeed = {
   bankHolder?: string;
   donationNote?: string;
   showDonorNames?: boolean;
+  latitude?: number;
+  longitude?: number;
+  timezone?: string;
   isDemo?: boolean;
   activeUntil?: Date | null;
 };
@@ -166,6 +169,9 @@ export function createMosque(input: MosqueSeed): number {
       bankHolder: input.bankHolder ?? null,
       donationNote: input.donationNote ?? null,
       showDonorNames: input.showDonorNames ?? true,
+      latitude: input.latitude ?? null,
+      longitude: input.longitude ?? null,
+      timezone: input.timezone ?? "Asia/Jakarta",
       isDemo: input.isDemo ?? false,
       activeUntil: input.activeUntil ?? null,
     })

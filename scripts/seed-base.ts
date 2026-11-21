@@ -212,6 +212,9 @@ export async function seedAlIkhlas() {
     bankHolder: "Masjid Al-Ikhlas — DKM",
     donationNote:
       "Setiap donasi dikonfirmasi bendahara maksimal 1×24 jam. Laporan keuangan dipublikasikan setiap awal bulan.",
+    latitude: -6.2615,
+    longitude: 106.8106,
+    timezone: "Asia/Jakarta",
     activeUntil: null,
   });
 
@@ -322,6 +325,9 @@ export async function seedNurulIman() {
     bankAccount: "7299887766",
     bankHolder: "Masjid Nurul Iman — DKM",
     donationNote: "Konfirmasi donasi maksimal 1×24 jam.",
+    latitude: -6.4819,
+    longitude: 106.854,
+    timezone: "Asia/Jakarta",
     activeUntil: expired,
   });
 
@@ -453,6 +459,9 @@ export async function seedDemoMosque() {
     bankHolder: "Masjid Baiturrahman — DKM",
     donationNote:
       "Ini masjid demo. Semua data adalah contoh dan akan direset otomatis secara berkala.",
+    latitude: -6.9175,
+    longitude: 107.6191,
+    timezone: "Asia/Jakarta",
     isDemo: true,
     activeUntil: null,
   });

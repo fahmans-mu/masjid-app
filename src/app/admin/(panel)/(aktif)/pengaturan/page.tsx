@@ -4,12 +4,20 @@ import { and, asc, eq } from "drizzle-orm";
 import { ActionForm } from "@/components/ActionForm";
 import { Alert } from "@/components/Alert";
 import { Badge } from "@/components/Badge";
+import { CityPresetSelect } from "@/components/CityPresetSelect";
 import { DeleteButton } from "@/components/DeleteButton";
 import { SubmitButton } from "@/components/SubmitButton";
 import { db } from "@/lib/db";
 import { users } from "@/lib/schema";
 import { requireMosqueSession } from "@/lib/auth";
 import { getMosqueById, listCategories } from "@/lib/queries";
+import {
+  parsePrayerOffsets,
+  PRAYER_KEYS,
+  PRAYER_LABELS,
+  PRAYER_METHODS,
+  PRAYER_TIMEZONES,
+} from "@/lib/prayer-times";
 import {
   addCategoryAction,
   addUserAction,
@@ -18,6 +26,7 @@ import {
   deleteUserAction,
   saveDonationSettingsAction,
   saveMosqueProfileAction,
+  savePrayerSettingsAction,
   toggleCategoryAction,
   toggleUserAction,
 } from "./actions";
@@ -67,6 +76,7 @@ export default async function PengaturanPage({
   if (!mosque) notFound();
   const incomeCats = listCategories(mosque.id, "income");
   const expenseCats = listCategories(mosque.id, "expense");
+  const prayerOffsets = parsePrayerOffsets(mosque.prayerOffsets);
   const userRows = db
     .select()
     .from(users)
@@ -281,6 +291,113 @@ export default async function PengaturanPage({
           </div>
           <SubmitButton pendingText="Menyimpan pengaturan...">
             Simpan Pengaturan Donasi
+          </SubmitButton>
+        </ActionForm>
+      </Card>
+
+      <Card
+        id="jadwal-sholat"
+        title="Jadwal Sholat"
+        description="Widget jadwal sholat otomatis di halaman publik, dihitung dari koordinat masjid. Kosongkan lintang & bujur untuk menyembunyikan widget."
+      >
+        <ActionForm action={savePrayerSettingsAction} className="space-y-5">
+          <CityPresetSelect inputCls={inputCls} labelCls={labelCls} />
+          <div className="grid gap-5 sm:grid-cols-3">
+            <div>
+              <label htmlFor="pr-lat" className={labelCls}>
+                Garis lintang (latitude)
+              </label>
+              <input
+                id="pr-lat"
+                name="latitude"
+                type="text"
+                inputMode="decimal"
+                placeholder="cth: -6.2088"
+                defaultValue={mosque.latitude ?? ""}
+                className={inputCls}
+              />
+            </div>
+            <div>
+              <label htmlFor="pr-lng" className={labelCls}>
+                Garis bujur (longitude)
+              </label>
+              <input
+                id="pr-lng"
+                name="longitude"
+                type="text"
+                inputMode="decimal"
+                placeholder="cth: 106.8456"
+                defaultValue={mosque.longitude ?? ""}
+                className={inputCls}
+              />
+            </div>
+            <div>
+              <label htmlFor="pr-tz" className={labelCls}>
+                Zona waktu
+              </label>
+              <select
+                id="pr-tz"
+                name="timezone"
+                defaultValue={mosque.timezone}
+                className={`${inputCls} bg-white`}
+              >
+                {PRAYER_TIMEZONES.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="grid gap-5 sm:grid-cols-2">
+            <div>
+              <label htmlFor="pr-method" className={labelCls}>
+                Metode perhitungan
+              </label>
+              <select
+                id="pr-method"
+                name="prayerMethod"
+                defaultValue={mosque.prayerMethod}
+                className={`${inputCls} bg-white`}
+              >
+                {PRAYER_METHODS.map((m) => (
+                  <option key={m.value} value={m.value}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div>
+            <p className={labelCls}>Koreksi menit (opsional)</p>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+              {PRAYER_KEYS.map((key) => (
+                <div key={key}>
+                  <label
+                    htmlFor={`pr-off-${key}`}
+                    className="mb-1 block text-xs font-medium text-slate-500"
+                  >
+                    {PRAYER_LABELS[key]}
+                  </label>
+                  <input
+                    id={`pr-off-${key}`}
+                    name={`off_${key}`}
+                    type="number"
+                    min={-30}
+                    max={30}
+                    defaultValue={prayerOffsets[key]}
+                    className={inputCls}
+                  />
+                </div>
+              ))}
+            </div>
+            <p className="mt-2 text-xs text-slate-400">
+              Sesuaikan bila jadwal berbeda dengan masjid setempat. Nilai positif = lebih
+              lambat, negatif = lebih cepat.
+            </p>
+          </div>
+          <SubmitButton pendingText="Menyimpan jadwal...">
+            Simpan Jadwal Sholat
           </SubmitButton>
         </ActionForm>
       </Card>

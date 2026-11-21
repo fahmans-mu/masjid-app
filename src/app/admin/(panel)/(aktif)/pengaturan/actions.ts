@@ -11,6 +11,7 @@ import {
   verifyPassword,
 } from "@/lib/auth";
 import { countCategoryUsage, getMosqueById } from "@/lib/queries";
+import { PRAYER_KEYS, PRAYER_TIMEZONES } from "@/lib/prayer-times";
 import { saveUpload } from "@/lib/upload";
 import {
   formInt,
@@ -114,6 +115,79 @@ export async function saveDonationSettingsAction(
 
   revalidateAll(mosque.slug);
   return { success: "Pengaturan donasi tersimpan." };
+}
+
+// ---------- Jadwal sholat ----------
+
+export async function savePrayerSettingsAction(
+  _prev: ActionState,
+  fd: FormData
+): Promise<ActionState> {
+  const session = await requireMosqueSession();
+  const mosque = getMosqueById(session.mosqueId);
+  if (!mosque) return { error: "Masjid tidak ditemukan." };
+
+  const latRaw = formOptional(fd, "latitude")?.replace(",", ".") ?? null;
+  const lngRaw = formOptional(fd, "longitude")?.replace(",", ".") ?? null;
+
+  if ((latRaw && !lngRaw) || (!latRaw && lngRaw)) {
+    return { error: "Isi garis lintang dan garis bujur sekaligus, atau kosongkan keduanya." };
+  }
+
+  let latitude: number | null = null;
+  let longitude: number | null = null;
+  if (latRaw && lngRaw) {
+    latitude = Number(latRaw);
+    longitude = Number(lngRaw);
+    if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
+      return { error: "Garis lintang harus berupa angka antara -90 dan 90." };
+    }
+    if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+      return { error: "Garis bujur harus berupa angka antara -180 dan 180." };
+    }
+  }
+
+  const timezone = formString(fd, "timezone") || "Asia/Jakarta";
+  if (!PRAYER_TIMEZONES.some((t) => t.value === timezone)) {
+    return { error: "Zona waktu tidak valid." };
+  }
+
+  const method = formString(fd, "prayerMethod");
+  if (method !== "kemenag" && method !== "mwl") {
+    return { error: "Metode perhitungan tidak valid." };
+  }
+
+  const offsets: Record<string, number> = {};
+  for (const key of PRAYER_KEYS) {
+    const raw = formString(fd, `off_${key}`);
+    const n = raw ? Number(raw.replace(",", ".")) : 0;
+    if (!Number.isFinite(n)) {
+      return { error: "Koreksi menit harus berupa angka." };
+    }
+    if (n < -30 || n > 30) {
+      return { error: "Koreksi menit maksimal ±30 menit per waktu sholat." };
+    }
+    offsets[key] = Math.trunc(n);
+  }
+
+  db.update(mosques)
+    .set({
+      latitude,
+      longitude,
+      timezone,
+      prayerMethod: method,
+      prayerOffsets: JSON.stringify(offsets),
+      updatedAt: new Date(),
+    })
+    .where(eq(mosques.id, mosque.id))
+    .run();
+
+  revalidateAll(mosque.slug);
+  return {
+    success: latitude != null
+      ? "Jadwal sholat tersimpan. Widget tampil di halaman publik masjid."
+      : "Koordinat dikosongkan. Widget jadwal sholat disembunyikan.",
+  };
 }
 
 // ---------- Kategori ----------

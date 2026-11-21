@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { DonationMethods } from "@/components/DonationMethods";
 import { EmptyState } from "@/components/EmptyState";
+import { PrayerTimesCard } from "@/components/PrayerTimesCard";
 import { ProgramCard } from "@/components/ProgramCard";
 import { ProgressBar } from "@/components/ProgressBar";
 import {
@@ -23,6 +24,7 @@ import {
   qurbanStats,
 } from "@/lib/queries";
 import { formatRupiah, monthLabel } from "@/lib/format";
+import { getPrayerSchedule } from "@/lib/prayer-times";
 
 export default async function MosqueHomePage({
   params,
@@ -43,6 +45,17 @@ export default async function MosqueHomePage({
   const topQurban = qurban
     ? listQurbanParticipantsDetailed(qurban.id, { onlyApproved: true }).slice(0, 3)
     : [];
+
+  const prayerSchedule =
+    m.latitude != null && m.longitude != null
+      ? getPrayerSchedule({
+          latitude: m.latitude,
+          longitude: m.longitude,
+          timezone: m.timezone,
+          prayerMethod: m.prayerMethod,
+          prayerOffsets: m.prayerOffsets,
+        })
+      : null;
 
   return (
     <div>
@@ -95,6 +108,8 @@ export default async function MosqueHomePage({
           </div>
         </div>
       </section>
+
+      {prayerSchedule && <PrayerTimesCard schedule={prayerSchedule} />}
 
       {/* Campaign aktif */}
       <section className="mx-auto max-w-6xl px-4 py-14">

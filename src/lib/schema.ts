@@ -1,6 +1,7 @@
 import {
   index,
   integer,
+  real,
   sqliteTable,
   text,
   uniqueIndex,
@@ -38,6 +39,14 @@ export const mosques = sqliteTable("mosques", {
   bankHolder: text("bank_holder"),
   donationNote: text("donation_note"),
   showDonorNames: integer("show_donor_names", { mode: "boolean" }).notNull().default(true),
+  // Jadwal sholat: null = belum diatur (widget tidak tampil)
+  latitude: real("latitude"),
+  longitude: real("longitude"),
+  timezone: text("timezone").notNull().default("Asia/Jakarta"),
+  prayerMethod: text("prayer_method", { enum: ["kemenag", "mwl"] })
+    .notNull()
+    .default("kemenag"),
+  prayerOffsets: text("prayer_offsets"), // JSON menit per waktu: {fajr,dhuhr,asr,maghrib,isha}
   isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
   isDemo: integer("is_demo", { mode: "boolean" }).notNull().default(false),
   // Masa aktif (infaq aplikasi). null = tanpa batas (masjid pertama / demo)
