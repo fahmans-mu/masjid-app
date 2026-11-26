@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Banknote, Building2, Gift, Smartphone } from "lucide-react";
+import { BadgePercent, Banknote, Building2, Gift, Smartphone } from "lucide-react";
 import { AppInfaqForm } from "@/components/AppInfaqForm";
 import { CopyButton } from "@/components/CopyButton";
 import { getPlatformSettings, listMosques } from "@/lib/queries";
 import { formatRupiah } from "@/lib/format";
+import { listInfaqPackages } from "@/lib/infaq";
 
 export const metadata: Metadata = {
   title: "Infaq Aplikasi",
@@ -37,30 +38,46 @@ export default function InfaqPage() {
 
       {/* Paket */}
       <div className="grid gap-5 sm:grid-cols-3">
-        {([1, 6, 12] as const).map((mo) => (
+        {listInfaqPackages(monthlyAmount).map((pkg) => (
           <div
-            key={mo}
+            key={pkg.months}
             className={`rounded-2xl border bg-white p-6 text-center ${
-              mo === 6 ? "border-emerald-500 shadow-lg" : "border-slate-200"
+              pkg.months === 6 ? "border-emerald-500 shadow-lg" : "border-slate-200"
             }`}
           >
-            {mo === 6 && (
-              <span className="mb-3 inline-block rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">
-                Paling populer
-              </span>
-            )}
+            <div className="mb-3 flex min-h-7 flex-wrap items-center justify-center gap-2">
+              {pkg.months === 6 && (
+                <span className="inline-block rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">
+                  Paling populer
+                </span>
+              )}
+              {pkg.savings > 0 && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800">
+                  <BadgePercent className="h-3.5 w-3.5" />
+                  Hemat {formatRupiah(pkg.savings)}
+                </span>
+              )}
+            </div>
             <p className="text-sm text-slate-500">
-              {mo === 1 ? "Bulanan" : mo === 6 ? "6 Bulan" : "Tahunan"}
+              {pkg.months === 1 ? "Bulanan" : pkg.months === 6 ? "6 Bulan" : "Tahunan"}
             </p>
             <p className="mt-2 text-3xl font-bold text-slate-900">
-              {formatRupiah(monthlyAmount * mo)}
+              {formatRupiah(pkg.price)}
             </p>
             <p className="mt-1 text-xs text-slate-400">
-              {mo === 1
-                ? "Bayar per bulan"
-                : mo === 6
-                  ? `${formatRupiah(monthlyAmount)}/bulan · setengah tahun`
-                  : `${formatRupiah(monthlyAmount)}/bulan · hemat waktu`}
+              {pkg.months === 1 ? (
+                "Bayar per bulan"
+              ) : (
+                <>
+                  <span className="font-semibold text-emerald-700">
+                    {formatRupiah(pkg.monthlyRate)}/bulan
+                  </span>{" "}
+                  · normalnya{" "}
+                  <span className="line-through">
+                    {formatRupiah(monthlyAmount * pkg.months)}
+                  </span>
+                </>
+              )}
             </p>
             <ul className="mt-5 space-y-2 text-left text-sm text-slate-600">
               <li>✓ Masa aktif panel pengurus</li>

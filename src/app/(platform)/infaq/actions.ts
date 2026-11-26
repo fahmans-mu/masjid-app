@@ -11,6 +11,7 @@ import {
   formString,
   type ActionState,
 } from "@/lib/action-utils";
+import { getInfaqPackage, isInfaqMonths } from "@/lib/infaq";
 
 const METHODS = ["transfer", "qris", "cash", "other"];
 
@@ -32,7 +33,7 @@ export async function submitAppInfaqAction(
   const note = formOptional(fd, "note")?.slice(0, 500) ?? null;
 
   if (!mosqueId) return { error: "Pilih masjid yang ingin diperpanjang." };
-  if (months !== 1 && months !== 6 && months !== 12) {
+  if (!isInfaqMonths(months)) {
     return { error: "Pilihan durasi tidak valid." };
   }
   if (!senderName) return { error: "Nama pengirim wajib diisi." };
@@ -49,8 +50,7 @@ export async function submitAppInfaqAction(
   }
 
   const platform = getPlatformSettings();
-  const monthlyAmount = platform?.monthlyAmount ?? 50000;
-  const amount = monthlyAmount * months;
+  const pkg = getInfaqPackage(platform?.monthlyAmount ?? 50000, months);
 
   let proofUrl: string | null = null;
   const proofEntry = fd.get("proof");
@@ -70,9 +70,9 @@ export async function submitAppInfaqAction(
   db.insert(appInfaqs)
     .values({
       mosqueId: mosque.id,
-      months: months as 1 | 6 | 12,
-      monthlyAmount,
-      amount,
+      months,
+      monthlyAmount: pkg.monthlyRate,
+      amount: pkg.price,
       senderName,
       method: method as "transfer" | "qris" | "cash" | "other",
       note,

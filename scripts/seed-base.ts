@@ -21,6 +21,7 @@ import {
   type ExpenseSeed,
   type ProgramSeed,
 } from "./lib-seed";
+import { getInfaqPackage } from "../src/lib/infaq";
 
 const daysFromNow = (n: number) => daysAgo(-n);
 
@@ -558,9 +559,10 @@ export async function seedDemoMosque() {
   );
 
   const settings = ensurePlatformSettings();
+  const pkg6 = getInfaqPackage(settings.monthlyAmount, 6);
   seedAppInfaq(mosqueId, {
     months: 6,
-    monthlyAmount: settings.monthlyAmount,
+    monthlyAmount: pkg6.monthlyRate,
     senderName: "Bendahara Masjid Baiturrahman",
     method: "transfer",
     note: "Infaq aplikasi paket 6 bulan. Mohon diverifikasi.",

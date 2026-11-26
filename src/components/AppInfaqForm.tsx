@@ -5,6 +5,11 @@ import { ActionForm } from "./ActionForm";
 import { SubmitButton } from "./SubmitButton";
 import { submitAppInfaqAction } from "@/app/(platform)/infaq/actions";
 import { formatRupiah, monthLabel } from "@/lib/format";
+import {
+  getInfaqPackage,
+  listInfaqPackages,
+  type InfaqMonths,
+} from "@/lib/infaq";
 
 export function AppInfaqForm({
   mosques,
@@ -15,8 +20,8 @@ export function AppInfaqForm({
   monthlyAmount: number;
   lockedMosqueId?: number;
 }) {
-  const [months, setMonths] = useState<1 | 6 | 12>(1);
-  const amount = monthlyAmount * months;
+  const [months, setMonths] = useState<InfaqMonths>(1);
+  const selected = getInfaqPackage(monthlyAmount, months);
 
   return (
     <ActionForm action={submitAppInfaqAction} className="space-y-4" resetOnSuccess>
@@ -60,11 +65,11 @@ export function AppInfaqForm({
           Durasi infaq aplikasi
         </span>
         <div className="grid gap-3 sm:grid-cols-3">
-          {([1, 6, 12] as const).map((mo) => (
+          {listInfaqPackages(monthlyAmount).map((pkg) => (
             <label
-              key={mo}
+              key={pkg.months}
               className={`cursor-pointer rounded-xl border-2 p-4 transition ${
-                months === mo
+                months === pkg.months
                   ? "border-emerald-500 bg-emerald-50"
                   : "border-slate-200 bg-white hover:border-emerald-300"
               }`}
@@ -73,17 +78,24 @@ export function AppInfaqForm({
                 <input
                   type="radio"
                   name="months"
-                  value={mo}
-                  checked={months === mo}
-                  onChange={() => setMonths(mo)}
+                  value={pkg.months}
+                  checked={months === pkg.months}
+                  onChange={() => setMonths(pkg.months)}
                   className="h-4 w-4 accent-emerald-600"
                 />
                 <span>
                   <span className="block text-sm font-semibold text-slate-900">
-                    {mo === 1 ? "1 bulan" : mo === 6 ? "6 bulan" : "12 bulan"}
+                    {pkg.months === 1
+                      ? "1 bulan"
+                      : pkg.months === 6
+                        ? "6 bulan"
+                        : "12 bulan"}
                   </span>
                   <span className="block text-xs text-slate-500">
-                    {formatRupiah(monthlyAmount * mo)}
+                    {formatRupiah(pkg.price)}
+                  </span>
+                  <span className="block text-xs font-semibold text-emerald-700">
+                    {pkg.savings > 0 ? `Hemat ${formatRupiah(pkg.savings)}` : "\u00a0"}
                   </span>
                 </span>
               </span>
@@ -93,8 +105,14 @@ export function AppInfaqForm({
       </div>
 
       <div className="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-        Total transfer: <span className="text-base font-bold">{formatRupiah(amount)}</span>{" "}
+        Total transfer:{" "}
+        <span className="text-base font-bold">{formatRupiah(selected.price)}</span>{" "}
         untuk {months} bulan ({monthLabel(new Date().toISOString().slice(0, 7))} dst.)
+        {selected.savings > 0 && (
+          <span className="ml-2 rounded-full bg-emerald-600 px-2.5 py-0.5 text-xs font-semibold text-white">
+            hemat {formatRupiah(selected.savings)}
+          </span>
+        )}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
