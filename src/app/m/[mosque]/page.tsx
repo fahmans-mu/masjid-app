@@ -13,6 +13,7 @@ import { DonationMethods } from "@/components/DonationMethods";
 import { EmptyState } from "@/components/EmptyState";
 import { PrayerTimesCard } from "@/components/PrayerTimesCard";
 import { ProgramCard } from "@/components/ProgramCard";
+import { QiblaCompassCard } from "@/components/QiblaCompassCard";
 import { ProgressBar } from "@/components/ProgressBar";
 import {
   getActiveQurbanProgram,
@@ -25,6 +26,7 @@ import {
 } from "@/lib/queries";
 import { formatRupiah, monthLabel } from "@/lib/format";
 import { getPrayerSchedule } from "@/lib/prayer-times";
+import { distanceToQibla, qiblaBearing } from "@/lib/qibla";
 
 export default async function MosqueHomePage({
   params,
@@ -55,6 +57,16 @@ export default async function MosqueHomePage({
           prayerMethod: m.prayerMethod,
           prayerOffsets: m.prayerOffsets,
         })
+      : null;
+
+  const qibla =
+    m.latitude != null && m.longitude != null
+      ? {
+          latitude: m.latitude,
+          longitude: m.longitude,
+          bearing: qiblaBearing(m.latitude, m.longitude),
+          distanceKm: distanceToQibla(m.latitude, m.longitude),
+        }
       : null;
 
   return (
@@ -110,6 +122,8 @@ export default async function MosqueHomePage({
       </section>
 
       {prayerSchedule && <PrayerTimesCard schedule={prayerSchedule} />}
+
+      {qibla && <QiblaCompassCard mosqueName={m.name} {...qibla} />}
 
       {/* Campaign aktif */}
       <section className="mx-auto max-w-6xl px-4 py-14">

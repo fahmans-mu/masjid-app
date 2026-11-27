@@ -23,10 +23,13 @@ export function PublicNav({
     { href: `${basePath}/qurban`, label: "Tabungan Qurban" },
     { href: `${basePath}/laporan`, label: "Laporan Keuangan" },
     { href: `${basePath}/transparansi`, label: "Buku Kas" },
+    { href: `${basePath}#arah-kiblat`, label: "Arah Kiblat" },
   ];
 
-  const isActive = (href: string, exact?: boolean) =>
-    exact ? pathname === href : pathname.startsWith(href);
+  const isActive = (href: string, exact?: boolean) => {
+    if (href.includes("#")) return false;
+    return exact ? pathname === href : pathname.startsWith(href);
+  };
 
   return (
     <header className="no-print sticky top-0 z-40 border-b border-slate-200 bg-white/90 backdrop-blur">

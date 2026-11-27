@@ -65,6 +65,9 @@ export default async function MosqueLayout({
               <Link href={`${basePath}/transparansi`} className="hover:text-emerald-700">
                 Buku kas terbuka
               </Link>
+              <Link href={`${basePath}#arah-kiblat`} className="hover:text-emerald-700">
+                Arah kiblat
+              </Link>
               <Link href="/admin/login" className="hover:text-emerald-700">
                 Login pengurus
               </Link>

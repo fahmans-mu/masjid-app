@@ -12,6 +12,7 @@ Platform web untuk mengelola keuangan masjid secara transparan. Banyak masjid bi
 - **Laporan keuangan bulanan** — dibuat dari rekap otomatis, dipublikasikan sebagai bentuk pertanggungjawaban
 - **Halaman publik** — jamaah bisa melihat program, tabungan qurban, buku kas, dan laporan yang sudah dipublikasikan
 - **Jadwal sholat realtime** — widget di beranda publik dengan hitung mundur ke adzan berikutnya; koordinat masjid, zona waktu, metode (Kemenag/MWL), dan koreksi menit diatur di Pengaturan
+- **Arah kiblat** — kompas penunjuk kiblat di beranda publik, dihitung dari koordinat masjid; mengikuti sensor kompas perangkat bila tersedia, dengan mode statis dan opsi memakai lokasi pengguna
 - **Export CSV** — data donasi, pengeluaran, dan laporan bisa diunduh
 
 **Fitur platform (super-admin):**
