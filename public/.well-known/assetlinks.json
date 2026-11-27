@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "id.masjidamanah.app",
+      "sha256_cert_fingerprints": [
+        "4F:84:9E:C6:47:38:B7:C8:F5:6C:3F:A3:12:E2:19:E5:19:8D:81:3F:F1:7F:DF:9C:75:02:E6:4E:67:81:5B:D2"
+      ]
+    }
+  }
+]

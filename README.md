@@ -215,7 +215,42 @@ npm ci && npm run build && sudo systemctl restart masjid-amanah
 
 ---
 
-## 7. Referensi perintah
+## 7. APK Android (TWA)
+
+Selain dibuka lewat peramban, aplikasi ini bisa dipasang sebagai aplikasi Android. Proyeknya ada di folder `android/` dan memakai pola **Trusted Web Activity (TWA)**: APK membuka situs **https://masjid-app.my.id** layar penuh memakai Chrome, sehingga server tetap harus online.
+
+**Sekali saja: pastikan situs sudah menyajikan berkas PWA**
+
+- `https://masjid-app.my.id/manifest.webmanifest` (dibuat otomatis dari `src/app/manifest.ts`)
+- `https://masjid-app.my.id/.well-known/assetlinks.json` (berisi `package_name` = `id.masjidamanah.app` dan sidik jari sertifikat penandatangan APK)
+
+Kalau `assetlinks.json` belum ada atau sidik jarinya tidak cocok, aplikasi tetap terbuka tetapi memakai bilah alamat peramban (belum layar penuh).
+
+**Build APK / AAB**
+
+Butuh JDK 17+ dan Android SDK (platform 34, build-tools 34.0.0).
+
+```bash
+cd android
+export ANDROID_HOME=/path/ke/android-sdk
+export KEYSTORE_PATH=$PWD/keystore/masjidamanah-release.jks
+export KEYSTORE_PASSWORD=...
+export KEY_PASSWORD=...
+export KEY_ALIAS=masjidamanah
+
+gradle assembleRelease   # APK -> app/build/outputs/apk/release/app-release.apk
+gradle bundleRelease     # AAB -> app/build/outputs/bundle/release/app-release.aab
+```
+
+**Naikkan versi** setiap rilis baru: ubah `versionCode` dan `versionName` di `android/app/build.gradle`.
+
+**Ganti alamat awal aplikasi** (misalnya langsung ke satu masjid): ubah `start_url`/`scope` di `src/app/manifest.ts` dan `android.support.customtabs.trusted.DEFAULT_URL` di `android/app/src/main/AndroidManifest.xml`.
+
+**Penting soal keystore:** file `android/keystore/*.jks` sengaja tidak masuk git. Simpan cadangannya di tempat aman — tanpa keystore yang sama, aplikasi tidak bisa di-update di Play Store. Jika memakai keystore baru, perbarui `sha256_cert_fingerprints` di `public/.well-known/assetlinks.json`, deploy ulang, lalu build ulang APK.
+
+---
+
+## 8. Referensi perintah
 
 | Perintah | Fungsi |
 |---|---|
@@ -229,7 +264,7 @@ npm ci && npm run build && sudo systemctl restart masjid-amanah
 | `npm run db:studio` | Buka browser GUI untuk melihat isi database |
 | `npm run lint` | Periksa kualitas kode |
 
-## 8. Struktur singkat
+## 9. Struktur singkat
 
 ```
 src/
