@@ -7,7 +7,7 @@ export default function manifest(): MetadataRoute.Manifest {
     description:
       "Program donasi, tabungan qurban, jadwal sholat, arah kiblat, dan laporan keuangan masjid yang transparan.",
     lang: "id",
-    start_url: "/",
+    start_url: "/masjid",
     scope: "/",
     display: "standalone",
     orientation: "portrait",

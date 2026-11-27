@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Landmark } from "lucide-react";
+import { MobileTabBar } from "@/components/MobileTabBar";
 import { PublicNav } from "@/components/PublicNav";
 import { getMosqueBySlug } from "@/lib/queries";
 
@@ -32,8 +33,10 @@ export default async function MosqueLayout({
   return (
     <div className="flex min-h-screen flex-col">
       <PublicNav mosqueName={m.name} logoUrl={m.logoUrl} basePath={basePath} />
-      <main className="flex-1">{children}</main>
-      <footer className="no-print border-t border-slate-200 bg-white">
+      <main className="flex-1 pb-[calc(4.75rem+env(safe-area-inset-bottom))] md:pb-0">
+        {children}
+      </main>
+      <footer className="no-print hidden border-t border-slate-200 bg-white md:block">
         <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:grid-cols-3">
           <div>
             <div className="flex items-center gap-2.5">
@@ -88,6 +91,15 @@ export default async function MosqueLayout({
           </p>
         </div>
       </footer>
+      <MobileTabBar
+        basePath={basePath}
+        mosqueName={m.name}
+        tagline={m.tagline}
+        address={m.address}
+        phone={m.phone}
+        email={m.email}
+        logoUrl={m.logoUrl}
+      />
     </div>
   );
 }

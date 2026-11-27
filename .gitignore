@@ -58,3 +58,6 @@ next-env.d.ts
 /android/keystore/
 *.jks
 *.keystore
+
+# unduhan sementara (APK)
+/public/download/
