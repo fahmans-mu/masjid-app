@@ -194,13 +194,13 @@ sudo systemctl enable --now masjid-amanah
 
 Buka `http://IP-VPS:3200`.
 
-**Update aplikasi di kemudian hari** (setelah ada perubahan kode):
+**Update aplikasi di kemudian hari:** VPS memakai checkout git dari repo ini di `/opt/masjid-amanah`, dan cron memeriksa `origin/main` tiap menit.
 
-```bash
-# salin file sumber terbaru ke /opt/masjid-amanah (kecuali data/ dan .env), lalu:
-cd /opt/masjid-amanah
-npm ci && npm run build && sudo systemctl restart masjid-amanah
-```
+- **Cukup push ke `main`** — VPS otomatis `git pull` + build + restart dalam ±1–2 menit. Riwayat deploy ada di `~/masjid-deploy.log` (server).
+- Deploy manual dari server: `bash ~/masjid-deploy.sh --manual`.
+- Perubahan `src/lib/schema.ts` **tidak** diauto-deploy (agar perubahan database tidak terjadi tanpa keputusan sadar): jalankan `npm run db:push` di server, lalu deploy manual.
+- Bila build gagal, build lama dipulihkan dan service tidak direstart.
+- Folder `data/` dan `.env` tidak pernah tersentuh git — aman dari deploy.
 
 > **Jangan hapus folder `data/` di VPS** — itu isi database dan bukti upload. Backup = salin folder `data/`.
 > Setelah update kode, jalankan `npm run db:push` bila ada perubahan skema.
