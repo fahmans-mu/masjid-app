@@ -16,7 +16,7 @@ import {
   type ActionState,
 } from "@/lib/action-utils";
 
-const METHODS = ["transfer", "qris", "cash", "other"] as const;
+const METHODS = ["transfer", "qris", "cash", "online", "other"] as const;
 type Method = (typeof METHODS)[number];
 
 function revalidateAll(mosqueSlug: string) {

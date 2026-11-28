@@ -2,9 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, CalendarClock, Users } from "lucide-react";
+import { Alert } from "@/components/Alert";
 import { Badge } from "@/components/Badge";
 import { DonationConfirmForm } from "@/components/DonationConfirmForm";
 import { DonationMethods } from "@/components/DonationMethods";
+import { MayarDonateForm } from "@/components/MayarDonateForm";
 import { ProgressBar } from "@/components/ProgressBar";
 import {
   getMosqueBySlug,
@@ -36,10 +38,13 @@ export async function generateMetadata({
 
 export default async function ProgramDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ mosque: string; slug: string }>;
+  searchParams: Promise<{ bayar?: string }>;
 }) {
   const { mosque, slug } = await params;
+  const { bayar } = await searchParams;
   const m = getMosqueBySlug(mosque);
   if (!m || !m.isActive) notFound();
   const basePath = `/m/${m.slug}`;
@@ -48,6 +53,7 @@ export default async function ProgramDetailPage({
   if (!program) notFound();
 
   const showNames = m.showDonorNames ?? true;
+  const mayarActive = Boolean(m.mayarEnabled && m.mayarApiKey);
   const isCampaign = program.type === "campaign";
   const target = isCampaign ? program.targetAmount : program.monthlyTarget;
   const value = isCampaign ? program.raised : program.raisedThisMonth;
@@ -88,6 +94,16 @@ export default async function ProgramDetailPage({
       >
         <ArrowLeft className="h-4 w-4" /> Semua program
       </Link>
+
+      {bayar === "selesai" && (
+        <div className="mt-5">
+          <Alert kind="success">
+            Terima kasih! Pembayaran Anda sedang diproses. Donasi akan muncul di
+            halaman ini begitu pembayaran terkonfirmasi oleh Mayar (biasanya dalam
+            hitungan detik).
+          </Alert>
+        </div>
+      )}
 
       <div className="mt-5 grid gap-8 lg:grid-cols-3">
         {/* Kolom utama */}
@@ -199,14 +215,31 @@ export default async function ProgramDetailPage({
 
         {/* Kolom samping */}
         <div>
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 lg:sticky lg:top-24">
-            <h2 className="font-bold text-slate-900">Cara Berdonasi</h2>
-            <p className="mt-1 text-sm text-slate-500">
-              Transfer atau scan QRIS, lalu kirim konfirmasi melalui formulir di
-              bawah.
-            </p>
-            <div className="mt-4">
-              <DonationMethods settings={m} />
+          <div className="space-y-6 lg:sticky lg:top-24">
+            {mayarActive && program.isActive && (
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-6">
+                <h2 className="font-bold text-slate-900">Donasi Online</h2>
+                <p className="mt-1 text-sm text-slate-600">
+                  Bayar instan dengan QRIS, virtual account, atau e-wallet. Donasi
+                  tercatat otomatis setelah pembayaran berhasil.
+                </p>
+                <MayarDonateForm
+                  mosqueId={m.id}
+                  programId={program.id}
+                  programTitle={program.title}
+                />
+              </div>
+            )}
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-6">
+              <h2 className="font-bold text-slate-900">Cara Berdonasi</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Transfer atau scan QRIS, lalu kirim konfirmasi melalui formulir di
+                bawah.
+              </p>
+              <div className="mt-4">
+                <DonationMethods settings={m} />
+              </div>
             </div>
           </div>
         </div>

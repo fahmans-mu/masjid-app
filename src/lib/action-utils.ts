@@ -31,6 +31,7 @@ const METHOD_LABELS: Record<string, string> = {
   qris: "QRIS",
   cash: "Tunai",
   other: "Lainnya",
+  online: "Pembayaran Online",
 };
 
 export function methodLabel(method: string | null | undefined): string {

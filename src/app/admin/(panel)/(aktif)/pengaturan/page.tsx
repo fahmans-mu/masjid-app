@@ -5,12 +5,15 @@ import { ActionForm } from "@/components/ActionForm";
 import { Alert } from "@/components/Alert";
 import { Badge } from "@/components/Badge";
 import { CityPresetSelect } from "@/components/CityPresetSelect";
+import { CopyButton } from "@/components/CopyButton";
 import { DeleteButton } from "@/components/DeleteButton";
 import { SubmitButton } from "@/components/SubmitButton";
 import { db } from "@/lib/db";
 import { users } from "@/lib/schema";
 import { requireMosqueSession } from "@/lib/auth";
 import { getMosqueById, listCategories } from "@/lib/queries";
+import { getAppBaseUrl } from "@/lib/app-url";
+import { formatDateTimeID } from "@/lib/format";
 import {
   parsePrayerOffsets,
   PRAYER_KEYS,
@@ -24,9 +27,12 @@ import {
   changePasswordAction,
   deleteCategoryAction,
   deleteUserAction,
+  disconnectMayarAction,
   saveDonationSettingsAction,
+  saveMayarSettingsAction,
   saveMosqueProfileAction,
   savePrayerSettingsAction,
+  testMayarConnectionAction,
   toggleCategoryAction,
   toggleUserAction,
 } from "./actions";
@@ -83,6 +89,16 @@ export default async function PengaturanPage({
     .where(and(eq(users.mosqueId, mosque.id)))
     .orderBy(asc(users.id))
     .all();
+
+  const appUrl = await getAppBaseUrl();
+  const webhookUrl = mosque.mayarWebhookToken
+    ? `${appUrl}/api/mayar/webhook/${mosque.slug}?token=${mosque.mayarWebhookToken}`
+    : null;
+  const mayarStatus = mosque.mayarEnabled && mosque.mayarApiKey
+    ? { kind: "aktif", label: "Aktif" }
+    : mosque.mayarApiKey
+      ? { kind: "pending", label: "Tersimpan, belum diaktifkan" }
+      : { kind: "selesai", label: "Belum terhubung" };
 
   return (
     <div className="space-y-6">
@@ -293,6 +309,105 @@ export default async function PengaturanPage({
             Simpan Pengaturan Donasi
           </SubmitButton>
         </ActionForm>
+      </Card>
+
+      <Card
+        id="pembayaran-online"
+        title="Pembayaran Online (Mayar)"
+        description="Hubungkan akun Mayar agar jamaah bisa berdonasi langsung dari halaman campaign (QRIS, virtual account, e-wallet). Donasi tercatat otomatis setelah pembayaran berhasil."
+      >
+        <div className="mb-5 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-slate-500">
+          <Badge kind={mayarStatus.kind}>{mayarStatus.label}</Badge>
+          {mosque.mayarApiKey && (
+            <span>
+              API Key:{" "}
+              <span className="font-mono text-slate-700">
+                ••••{mosque.mayarApiKey.slice(-4)}
+              </span>
+            </span>
+          )}
+          {mosque.mayarConnectedAt && (
+            <span className="text-xs text-slate-400">
+              Terakhir terhubung {formatDateTimeID(mosque.mayarConnectedAt)}
+            </span>
+          )}
+        </div>
+
+        <ActionForm action={saveMayarSettingsAction} className="space-y-5">
+          <div>
+            <label htmlFor="my-key" className={labelCls}>
+              API Key Mayar
+            </label>
+            <input
+              id="my-key"
+              name="mayarApiKey"
+              type="password"
+              autoComplete="off"
+              placeholder={
+                mosque.mayarApiKey
+                  ? "Kosongkan bila tidak ingin mengganti API Key"
+                  : "Tempel API Key dari web.mayar.id/api-keys"
+              }
+              className={inputCls}
+            />
+            <p className="mt-2 text-xs text-slate-400">
+              Buat API Key dengan akses <span className="font-semibold">Read &amp; Write</span>{" "}
+              di dashboard Mayar, lalu salin ke sini. Key disimpan di server dan tidak
+              pernah ditampilkan lagi secara utuh.
+            </p>
+          </div>
+          <label className="inline-flex cursor-pointer items-start gap-3 rounded-xl border border-slate-300 px-4 py-3">
+            <input
+              type="checkbox"
+              name="mayarEnabled"
+              defaultChecked={mosque.mayarEnabled}
+              className="mt-0.5 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+            />
+            <span className="text-sm">
+              <span className="font-medium text-slate-700">
+                Aktifkan tombol donasi online di halaman campaign
+              </span>
+              <span className="mt-1 block text-xs text-slate-400">
+                Nonaktifkan sementara tanpa menghapus API Key.
+              </span>
+            </span>
+          </label>
+          <SubmitButton pendingText="Memverifikasi...">
+            Simpan &amp; Hubungkan
+          </SubmitButton>
+        </ActionForm>
+
+        {webhookUrl && (
+          <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              URL Webhook
+            </p>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <code className="break-all rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700">
+                {webhookUrl}
+              </code>
+              <CopyButton text={webhookUrl} />
+            </div>
+            <p className="mt-2 text-xs text-slate-500">
+              Daftarkan URL ini di dashboard Mayar → Integrasi → Webhook, lalu klik{" "}
+              <span className="font-semibold">Test URL</span>. URL ini mengandung token
+              rahasia — jangan dibagikan.
+            </p>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <ActionForm action={testMayarConnectionAction}>
+                <SubmitButton variant="secondary" pendingText="Menguji koneksi...">
+                  Tes Koneksi Mayar
+                </SubmitButton>
+              </ActionForm>
+              <DeleteButton
+                action={disconnectMayarAction}
+                fields={{ confirm: 1 }}
+                label="Putuskan Koneksi"
+                confirmText="Putuskan koneksi Mayar? API Key dan URL webhook akan dihapus, dan donasi online dinonaktifkan."
+              />
+            </div>
+          </div>
+        )}
       </Card>
 
       <Card

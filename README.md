@@ -8,6 +8,7 @@ Platform web untuk mengelola keuangan masjid secara transparan. Banyak masjid bi
 - **Program donasi rutin** — donasi bulanan (operasional, beasiswa, dll.)
 - **Tabungan Qurban** — pendaftaran peserta (kambing / sapi 1/7), pencatatan setoran cicilan, progres tabungan tampil di halaman publik
 - **Pencatatan donasi** — input manual oleh pengurus, atau jamaah konfirmasi sendiri (upload bukti transfer) lalu diverifikasi pengurus
+- **Pembayaran online (Mayar)** — donasi campaign bisa dibayar langsung via QRIS/VA/e-wallet; tercatat otomatis setelah pembayaran terkonfirmasi
 - **Pencatatan pengeluaran** — dengan bukti nota dan kategori
 - **Laporan keuangan bulanan** — dibuat dari rekap otomatis, dipublikasikan sebagai bentuk pertanggungjawaban
 - **Halaman publik** — jamaah bisa melihat program, tabungan qurban, buku kas, dan laporan yang sudah dipublikasikan
@@ -215,7 +216,32 @@ npm ci && npm run build && sudo systemctl restart masjid-amanah
 
 ---
 
-## 7. APK Android (TWA)
+## 7. Pembayaran Online (Mayar)
+
+Halaman campaign bisa menampilkan tombol **Donasi Online** agar jamaah membayar langsung lewat [Mayar](https://mayar.id) (QRIS, virtual account, e-wallet). Donasi tercatat **otomatis sebagai terverifikasi** setelah pembayaran dikonfirmasi.
+
+**Aktifkan (per masjid):**
+
+1. Buat akun Mayar, lalu buat **API Key** dengan akses **Read & Write** di <https://web.mayar.id/api-keys>.
+2. Masuk panel → **Pengaturan → Pembayaran Online (Mayar)**.
+3. Tempel API Key, centang *Aktifkan tombol donasi online*, lalu klik **Simpan & Hubungkan**. API Key diverifikasi ke Mayar sebelum disimpan (tidak pernah ditampilkan utuh lagi).
+4. Salin **URL Webhook** yang muncul. Buka dashboard Mayar → **Integrasi → Webhook**, tempel URL tersebut, simpan, lalu klik **Test URL** sampai statusnya `SUCCESS`.
+
+**Cara kerjanya:**
+
+- Donatur mengisi nominal di halaman campaign → server membuat *payment request* di Mayar (`POST /hl/v2/payments/create`) dan menyimpan tagihan di tabel `mayar_payments`.
+- Setelah membayar, Mayar memanggil webhook `payment.received`. Server memeriksa token rahasia di URL, lalu **memverifikasi ulang** status pembayaran ke API Mayar sebelum mencatat donasi (request palsu tidak bisa mengklaim pembayaran).
+- Donasi disimpan dengan metode **Pembayaran Online**, status *terverifikasi*, dan otomatis muncul di laporan. Webhook yang terkirim berulang tidak menggandakan donasi.
+
+**Catatan:**
+
+- URL webhook memuat token rahasia (`?token=...`) — jangan dibagikan. Tombol **Putuskan Koneksi** menghapus API Key dan token.
+- Bila server berada di balik proxy, pastikan header `X-Forwarded-Host`/`X-Forwarded-Proto` diteruskan (Caddy/Nginx default sudah). Bisa juga set `APP_URL=https://masjid-app.my.id` di `.env` agar URL webhook & redirect pasti benar.
+- Untuk uji coba tanpa uang sungguhan, gunakan akun sandbox Mayar dan set `MAYAR_API_BASE=https://api.mayar.club/hl/v2` (default produksi: `https://api.mayar.id/hl/v2`).
+
+---
+
+## 8. APK Android (TWA)
 
 Selain dibuka lewat peramban, aplikasi ini bisa dipasang sebagai aplikasi Android. Proyeknya ada di folder `android/` dan memakai pola **Trusted Web Activity (TWA)**: APK membuka situs **https://masjid-app.my.id** layar penuh memakai Chrome, sehingga server tetap harus online.
 
@@ -250,7 +276,7 @@ gradle bundleRelease     # AAB -> app/build/outputs/bundle/release/app-release.a
 
 ---
 
-## 8. Referensi perintah
+## 9. Referensi perintah
 
 | Perintah | Fungsi |
 |---|---|
@@ -264,7 +290,7 @@ gradle bundleRelease     # AAB -> app/build/outputs/bundle/release/app-release.a
 | `npm run db:studio` | Buka browser GUI untuk melihat isi database |
 | `npm run lint` | Periksa kualitas kode |
 
-## 9. Struktur singkat
+## 10. Struktur singkat
 
 ```
 src/

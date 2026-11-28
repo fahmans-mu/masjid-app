@@ -47,6 +47,11 @@ export const mosques = sqliteTable("mosques", {
     .notNull()
     .default("kemenag"),
   prayerOffsets: text("prayer_offsets"), // JSON menit per waktu: {fajr,dhuhr,asr,maghrib,isha}
+  // Pembayaran online via Mayar (per masjid). API key disimpan di server.
+  mayarApiKey: text("mayar_api_key"),
+  mayarEnabled: integer("mayar_enabled", { mode: "boolean" }).notNull().default(false),
+  mayarWebhookToken: text("mayar_webhook_token"),
+  mayarConnectedAt: integer("mayar_connected_at", { mode: "timestamp" }),
   isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
   isDemo: integer("is_demo", { mode: "boolean" }).notNull().default(false),
   // Masa aktif (infaq aplikasi). null = tanpa batas (masjid pertama / demo)
@@ -159,7 +164,7 @@ export const donations = sqliteTable(
     donorName: text("donor_name").notNull().default("Hamba Allah"),
     donorPhone: text("donor_phone"),
     amount: integer("amount").notNull(),
-    method: text("method", { enum: ["transfer", "qris", "cash", "other"] }).notNull().default("transfer"),
+    method: text("method", { enum: ["transfer", "qris", "cash", "other", "online"] }).notNull().default("transfer"),
     donatedAt: text("donated_at").notNull(), // YYYY-MM-DD
     note: text("note"),
     proofUrl: text("proof_url"),
@@ -169,6 +174,36 @@ export const donations = sqliteTable(
     createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
   },
   (t) => [index("donations_mosque_idx").on(t.mosqueId)]
+);
+
+// Tagihan pembayaran online Mayar untuk donasi campaign.
+// Baris dibuat saat donasi dimulai; status berubah "paid" lewat webhook.
+export const mayarPayments = sqliteTable(
+  "mayar_payments",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    mosqueId: integer("mosque_id")
+      .notNull()
+      .references(() => mosques.id, { onDelete: "cascade" }),
+    programId: integer("program_id").references(() => programs.id, { onDelete: "set null" }),
+    invoiceId: text("invoice_id").notNull().unique(),
+    transactionId: text("transaction_id"),
+    link: text("link").notNull(),
+    amount: integer("amount").notNull(),
+    donorName: text("donor_name").notNull().default("Hamba Allah"),
+    donorEmail: text("donor_email"),
+    donorPhone: text("donor_phone"),
+    status: text("status", { enum: ["pending", "paid", "expired"] }).notNull().default("pending"),
+    donationId: integer("donation_id").references(() => donations.id, {
+      onDelete: "set null",
+    }),
+    paidAt: integer("paid_at", { mode: "timestamp" }),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+  },
+  (t) => [
+    index("mayar_payments_mosque_idx").on(t.mosqueId),
+    index("mayar_payments_tx_idx").on(t.transactionId),
+  ]
 );
 
 // Pengeluaran masjid
@@ -297,6 +332,7 @@ export type User = typeof users.$inferSelect;
 export type Program = typeof programs.$inferSelect;
 export type Category = typeof categories.$inferSelect;
 export type Donation = typeof donations.$inferSelect;
+export type MayarPayment = typeof mayarPayments.$inferSelect;
 export type Expense = typeof expenses.$inferSelect;
 export type MonthlyReport = typeof monthlyReports.$inferSelect;
 export type QurbanProgram = typeof qurbanPrograms.$inferSelect;

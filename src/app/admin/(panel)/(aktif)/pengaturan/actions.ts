@@ -1,5 +1,6 @@
 "use server";
 
+import { randomBytes } from "crypto";
 import { and, count, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -11,8 +12,10 @@ import {
   verifyPassword,
 } from "@/lib/auth";
 import { countCategoryUsage, getMosqueById } from "@/lib/queries";
+import { getMayarBalance, MayarError } from "@/lib/mayar";
 import { PRAYER_KEYS, PRAYER_TIMEZONES } from "@/lib/prayer-times";
 import { saveUpload } from "@/lib/upload";
+import { formatRupiah } from "@/lib/format";
 import {
   formInt,
   formOptional,
@@ -115,6 +118,103 @@ export async function saveDonationSettingsAction(
 
   revalidateAll(mosque.slug);
   return { success: "Pengaturan donasi tersimpan." };
+}
+
+// ---------- Pembayaran online (Mayar) ----------
+
+export async function saveMayarSettingsAction(
+  _prev: ActionState,
+  fd: FormData
+): Promise<ActionState> {
+  const session = await requireMosqueSession();
+  const mosque = getMosqueById(session.mosqueId);
+  if (!mosque) return { error: "Masjid tidak ditemukan." };
+
+  const newKey = formOptional(fd, "mayarApiKey")?.trim() ?? null;
+  const enabled = fd.get("mayarEnabled") === "on";
+
+  let apiKey = mosque.mayarApiKey;
+  if (newKey) {
+    if (newKey.length < 10) {
+      return { error: "API Key Mayar terlalu pendek. Salin ulang dari dashboard Mayar." };
+    }
+    try {
+      await getMayarBalance(newKey);
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : "Gagal memverifikasi API Key Mayar." };
+    }
+    apiKey = newKey;
+  }
+
+  if (enabled && !apiKey) {
+    return { error: "Masukkan API Key Mayar terlebih dahulu untuk mengaktifkan pembayaran online." };
+  }
+
+  const webhookToken = mosque.mayarWebhookToken ?? randomBytes(24).toString("hex");
+
+  db.update(mosques)
+    .set({
+      mayarApiKey: apiKey,
+      mayarEnabled: enabled && Boolean(apiKey),
+      mayarWebhookToken: webhookToken,
+      mayarConnectedAt: newKey ? new Date() : mosque.mayarConnectedAt,
+      updatedAt: new Date(),
+    })
+    .where(eq(mosques.id, mosque.id))
+    .run();
+
+  revalidateAll(mosque.slug);
+  return {
+    success: newKey
+      ? "API Key Mayar terverifikasi dan tersimpan."
+      : "Pengaturan Mayar tersimpan.",
+  };
+}
+
+export async function testMayarConnectionAction(): Promise<ActionState> {
+  const session = await requireMosqueSession();
+  const mosque = getMosqueById(session.mosqueId);
+  if (!mosque) return { error: "Masjid tidak ditemukan." };
+  if (!mosque.mayarApiKey) {
+    return { error: "API Key Mayar belum diisi. Simpan API Key terlebih dahulu." };
+  }
+
+  try {
+    const balance = await getMayarBalance(mosque.mayarApiKey);
+    db.update(mosques)
+      .set({ mayarConnectedAt: new Date() })
+      .where(eq(mosques.id, mosque.id))
+      .run();
+    revalidatePath("/admin/pengaturan");
+    return {
+      success: `Terhubung ke Mayar. Saldo tersedia: ${formatRupiah(balance?.balanceActive ?? balance?.balance ?? 0)}.`,
+    };
+  } catch (e) {
+    if (e instanceof MayarError && (e.status === 401 || e.status === 403)) {
+      return { error: e.message };
+    }
+    return { error: e instanceof Error ? e.message : "Gagal menghubungi Mayar." };
+  }
+}
+
+export async function disconnectMayarAction(fd: FormData) {
+  const session = await requireMosqueSession();
+  const mosque = getMosqueById(session.mosqueId);
+  if (!mosque) return;
+  if (formString(fd, "confirm") !== "1") return;
+
+  db.update(mosques)
+    .set({
+      mayarApiKey: null,
+      mayarEnabled: false,
+      mayarWebhookToken: null,
+      mayarConnectedAt: null,
+      updatedAt: new Date(),
+    })
+    .where(eq(mosques.id, mosque.id))
+    .run();
+
+  revalidateAll(mosque.slug);
 }
 
 // ---------- Jadwal sholat ----------

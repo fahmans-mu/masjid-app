@@ -102,6 +102,7 @@ export function DonationForm({
             <option value="transfer">Transfer bank</option>
             <option value="qris">QRIS</option>
             <option value="cash">Tunai</option>
+            <option value="online">Pembayaran online (Mayar)</option>
             <option value="other">Lainnya</option>
           </select>
         </div>
