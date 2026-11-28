@@ -197,6 +197,7 @@ Buka `http://IP-VPS:3200`.
 **Update aplikasi di kemudian hari:** VPS memakai checkout git dari repo ini di `/opt/masjid-amanah`, dan cron memeriksa `origin/main` tiap menit.
 
 - **Cukup push ke `main`** — VPS otomatis `git pull` + build + restart dalam ±1–2 menit. Riwayat deploy ada di `~/masjid-deploy.log` (server).
+- Build memakai folder staging (`.next-staging`) — versi lama tetap tayang selama proses build, jadi situs tidak down saat deploy.
 - Deploy manual dari server: `bash ~/masjid-deploy.sh --manual`.
 - Perubahan `src/lib/schema.ts` **tidak** diauto-deploy (agar perubahan database tidak terjadi tanpa keputusan sadar): jalankan `npm run db:push` di server, lalu deploy manual.
 - Bila build gagal, build lama dipulihkan dan service tidak direstart.
