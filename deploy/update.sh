@@ -23,6 +23,9 @@ git pull --ff-only origin "$BRANCH"
 echo "==> Install dependensi"
 npm ci
 
+echo "==> Terapkan perubahan skema database"
+npm run db:push
+
 echo "==> Build produksi"
 npm run build
 
